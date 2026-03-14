@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>宣文韬最帅</title>
+    <title>请输入口令</title>
     <style>
         * {
             margin: 0;
@@ -20,7 +20,7 @@
             justify-content: center;
             font-family: "Microsoft YaHei", sans-serif;
         }
-        /* 字号改小了！ */
+        /* 文字默认隐藏 */
         .title {
             font-size: 50px;
             font-weight: bold;
@@ -34,6 +34,7 @@
             text-shadow: 0 0 20px rgba(255, 107, 157, 0.5);
             text-align: center;
             line-height: 1.3;
+            display: none; /* 默认隐藏 */
         }
         @keyframes gradientShift {
             0% { background-position: 0% 50%; }
@@ -56,17 +57,41 @@
 </head>
 <body>
     <canvas id="fireworks"></canvas>
-    <!-- 文字分成两行啦 -->
     <h1 class="title">
         宣文韬<br>
         最帅
     </h1>
 
     <script>
+        // ====================== 口令设置 ======================
+        const PASSWORD = "周睿祥是gay"; // 你可以改成自己想要的口令
+        // ======================================================
+
+        // 口令验证
+        function checkPassword() {
+            let userInput = prompt("请输入正确口令，解锁惊喜特效：", "");
+            if (userInput === PASSWORD) {
+                // 验证成功：显示文字 + 启动烟花
+                document.querySelector(".title").style.display = "block";
+                startFireworks();
+                document.title = "宣文韬最帅";
+            } else {
+                alert("口令错误，无法查看内容！");
+                checkPassword(); // 错误则重新输入
+            }
+        }
+
+        // 烟花特效（验证成功才启动）
         const canvas = document.getElementById('fireworks');
         const ctx = canvas.getContext('2d');
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        let fireworksInterval;
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
 
         function random(min, max) {
             return Math.random() * (max - min) + min;
@@ -115,8 +140,6 @@
             }
         }
 
-        setInterval(createFirework, 800);
-
         function animate() {
             ctx.fillStyle = 'rgba(10, 10, 10, 0.2)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -133,12 +156,14 @@
             requestAnimationFrame(animate);
         }
 
-        window.addEventListener('resize', () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        });
+        // 启动烟花
+        function startFireworks() {
+            animate();
+            fireworksInterval = setInterval(createFirework, 800);
+        }
 
-        animate();
+        // 页面加载后执行口令验证
+        window.onload = checkPassword;
     </script>
 </body>
 </html>
