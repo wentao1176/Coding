@@ -12,7 +12,7 @@
       let username = document.getElementById("user").value;
       let password = document.getElementById("pwd").value;
 
-      let res = await fetch("/register", {
+      let res = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password })

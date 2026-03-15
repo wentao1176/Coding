@@ -14,7 +14,7 @@
         return;
       }
 
-      let res = await fetch(`/check?token=${token}`);
+      let res = await fetch(`/api/check?token=${token}`);
       if (res.ok) {
         let data = await res.json();
         document.getElementById("msg").innerText = "欢迎你：" + data.username;
