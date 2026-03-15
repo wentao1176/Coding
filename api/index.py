@@ -13,7 +13,7 @@ class User(BaseModel):
     username: str
     password: str
 
-@app.post("/register")
+@app.post("/api/register")
 def register(user: User):
     if user.username in users_db:
         raise HTTPException(status_code=400, detail="用户名已存在")
@@ -21,7 +21,7 @@ def register(user: User):
     users_db[user.username] = hashed_pw
     return {"status": "ok", "msg": "注册成功"}
 
-@app.post("/login")
+@app.post("/api/login")
 def login(user: User):
     if user.username not in users_db:
         raise HTTPException(status_code=401, detail="用户名不存在")
@@ -34,7 +34,7 @@ def login(user: User):
     )
     return {"status": "ok", "token": token}
 
-@app.get("/check")
+@app.get("/api/check")
 def check(token: str):
     try:
         data = jwt.decode(token, "my-secret-key", algorithms=["HS256"])
