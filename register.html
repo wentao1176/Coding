@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<title>注册</title>
+<body>
+  <h1>注册</h1>
+  <input id="user" placeholder="用户名"><br>
+  <input id="pwd" type="password" placeholder="密码"><br>
+  <button onclick="register()">注册</button>
+  <p><a href="login.html">已有账号？去登录</a></p>
+
+  <script>
+    async function register() {
+      let username = document.getElementById("user").value;
+      let password = document.getElementById("pwd").value;
+
+      let res = await fetch("/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+
+      let data = await res.json();
+      if (res.ok) {
+        alert("注册成功！请登录");
+        location.href = "login.html";
+      } else {
+        alert(data.detail);
+      }
+    }
+  </script>
+</body>
+</html>
