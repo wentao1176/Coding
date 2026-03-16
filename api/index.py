@@ -9,7 +9,8 @@ from datetime import datetime, timedelta
 app = FastAPI()
 
 # 文件存储用户数据
-USERS_FILE = "users.json"
+# 使用绝对路径确保在任何环境下都能正确找到文件
+USERS_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "users.json")
 
 # 加载用户数据
 users_db = {}
@@ -17,13 +18,18 @@ if os.path.exists(USERS_FILE):
     try:
         with open(USERS_FILE, "r", encoding="utf-8") as f:
             users_db = json.load(f)
-    except:
+    except Exception as e:
+        print(f"加载用户数据失败: {e}")
         users_db = {}
 
 # 保存用户数据
 def save_users():
-    with open(USERS_FILE, "w", encoding="utf-8") as f:
-        json.dump(users_db, f, ensure_ascii=False, indent=2)
+    try:
+        with open(USERS_FILE, "w", encoding="utf-8") as f:
+            json.dump(users_db, f, ensure_ascii=False, indent=2)
+        print(f"用户数据已保存到: {USERS_FILE}")
+    except Exception as e:
+        print(f"保存用户数据失败: {e}")
 
 class User(BaseModel):
     username: str
