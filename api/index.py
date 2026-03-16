@@ -82,3 +82,14 @@ def check(token: str):
         return {"status": "ok", "username": data["username"]}
     except:
         raise HTTPException(status_code=401, detail="未登录")
+
+@app.get("/api/users")
+def get_users():
+    """获取所有用户列表"""
+    print(f"获取用户列表请求")
+    print(f"当前用户数据: {users_db}")
+    print(f"文件路径: {USERS_FILE}")
+    
+    # 只返回用户名列表，不返回密码
+    user_list = list(users_db.keys())
+    return {"status": "ok", "users": user_list, "count": len(user_list)}
