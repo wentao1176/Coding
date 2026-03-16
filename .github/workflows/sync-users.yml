@@ -16,8 +16,8 @@ jobs:
 
       - name: Fetch users data from Vercel API
         run: |
-          # 使用用户提供的Vercel域名
-          VERCEL_URL="https://xwt.vercel.app"
+          # 使用用户提供的自定义域名
+          VERCEL_URL="https://xuanwentao.cn"
           curl -s "$VERCEL_URL/api/users" > users.json
           cat users.json
 
