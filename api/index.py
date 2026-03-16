@@ -2,12 +2,28 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import bcrypt
 import jwt
+import json
+import os
 from datetime import datetime, timedelta
 
 app = FastAPI()
 
-# 内存存储用户数据（重启后丢失）
+# 文件存储用户数据
+USERS_FILE = "users.json"
+
+# 加载用户数据
 users_db = {}
+if os.path.exists(USERS_FILE):
+    try:
+        with open(USERS_FILE, "r", encoding="utf-8") as f:
+            users_db = json.load(f)
+    except:
+        users_db = {}
+
+# 保存用户数据
+def save_users():
+    with open(USERS_FILE, "w", encoding="utf-8") as f:
+        json.dump(users_db, f, ensure_ascii=False, indent=2)
 
 class User(BaseModel):
     username: str
@@ -19,6 +35,7 @@ def register(user: User):
         raise HTTPException(status_code=400, detail="用户名已存在")
     hashed_pw = bcrypt.hashpw(user.password.encode(), bcrypt.gensalt()).decode()
     users_db[user.username] = hashed_pw
+    save_users()  # 保存到文件
     return {"status": "ok", "msg": "注册成功"}
 
 @app.post("/api/login")
