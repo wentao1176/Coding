@@ -37,12 +37,30 @@ class User(BaseModel):
 
 @app.post("/api/register")
 def register(user: User):
+    print(f"收到注册请求: {user.username}")
+    print(f"当前用户数据: {users_db}")
+    print(f"文件路径: {USERS_FILE}")
+    
     if user.username in users_db:
+        print(f"用户名已存在: {user.username}")
         raise HTTPException(status_code=400, detail="用户名已存在")
+    
     hashed_pw = bcrypt.hashpw(user.password.encode(), bcrypt.gensalt()).decode()
     users_db[user.username] = hashed_pw
+    
+    print(f"添加用户后: {users_db}")
     save_users()  # 保存到文件
-    return {"status": "ok", "msg": "注册成功"}
+    
+    # 重新加载文件内容，验证是否保存成功
+    if os.path.exists(USERS_FILE):
+        try:
+            with open(USERS_FILE, "r", encoding="utf-8") as f:
+                saved_data = json.load(f)
+            print(f"文件保存成功，内容: {saved_data}")
+        except Exception as e:
+            print(f"验证文件内容失败: {e}")
+    
+    return {"status": "ok", "msg": "注册成功", "users_count": len(users_db)}
 
 @app.post("/api/login")
 def login(user: User):
