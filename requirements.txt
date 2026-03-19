@@ -1,5 +1,4 @@
 fastapi
 uvicorn
-bcrypt
-pyjwt
-pydantic
+psycopg2-binary
+python-multipart

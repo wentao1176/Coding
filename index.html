@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>首页</title>
+    <title>文件上传系统</title>
     <style>
         * {
             margin: 0;
@@ -11,199 +11,310 @@
             box-sizing: border-box;
         }
         body {
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
-            background: #0a0a0a;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            font-family: "Microsoft YaHei", sans-serif;
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
         }
-        .user-info {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            color: #fff;
-            z-index: 100;
-            text-align: right;
-        }
-        .user-info button {
-            margin-top: 10px;
-            padding: 8px 16px;
-            background: linear-gradient(45deg, #ff6b9d, #61dafb);
-            border: none;
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
             border-radius: 20px;
-            color: white;
-            cursor: pointer;
-            font-size: 14px;
-            transition: transform 0.3s;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
         }
-        .user-info button:hover {
-            transform: scale(1.1);
-        }
-        .title {
-            font-size: 80px;
-            font-weight: bold;
-            background: linear-gradient(45deg, #ff6b9d, #ffd93d, #61dafb, #ff6b9d);
-            background-size: 300% 300%;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            animation: gradientShift 3s ease infinite, glow 2s ease-in-out infinite alternate, float 3s ease-in-out infinite;
-            z-index: 10;
-            position: relative;
-            text-shadow: 0 0 20px rgba(255, 107, 157, 0.5);
+        h1 {
             text-align: center;
-            line-height: 1.3;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2rem;
         }
-        @keyframes gradientShift {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 30px;
         }
-        @keyframes glow {
-            from { filter: brightness(1); }
-            to { filter: brightness(1.3); }
+        .upload-area:hover {
+            background: #f0f4ff;
+            border-color: #764ba2;
         }
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-20px); }
+        .upload-area.dragover {
+            background: #e8edff;
+            border-color: #764ba2;
+            transform: scale(1.02);
         }
-        #fireworks {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+        .upload-text {
+            color: #666;
+            font-size: 1.1rem;
+        }
+        #fileInput {
+            display: none;
+        }
+        .file-list {
+            margin-top: 30px;
+        }
+        .file-list h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+        }
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            transition: all 0.3s;
+        }
+        .file-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .file-icon {
+            font-size: 1.5rem;
+        }
+        .file-details {
+            text-align: left;
+        }
+        .file-name {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 3px;
+        }
+        .file-meta {
+            font-size: 0.85rem;
+            color: #666;
+        }
+        .file-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-download {
+            background: #28a745;
+            color: white;
+        }
+        .btn-download:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+        .btn-delete:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .message {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            display: none;
+        }
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            .file-item {
+                flex-direction: column;
+                gap: 15px;
+            }
+            .file-info {
+                flex-direction: column;
+                text-align: center;
+            }
         }
     </style>
 </head>
 <body>
-    <canvas id="fireworks"></canvas>
-    
-    <div class="user-info">
-        <p id="msg">正在验证登录状态...</p>
-        <button onclick="logout()">退出登录</button>
+    <div class="container">
+        <h1>📁 文件上传系统</h1>
+        
+        <div id="message" class="message"></div>
+        
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📤</div>
+            <div class="upload-text">点击或拖拽文件到此处上传</div>
+            <input type="file" id="fileInput">
+        </div>
+        
+        <div class="file-list">
+            <h2>📂 已上传文件</h2>
+            <div id="fileList">
+                <div class="loading">加载中...</div>
+            </div>
+        </div>
     </div>
-    
-    <h1 class="title">
-        宣文韬<br>
-        最帅
-    </h1>
 
     <script>
-        // 登录验证
-        async function checkLogin() {
-            let token = localStorage.token;
-            if (!token) {
-                alert("请先登录");
-                location.href = "login.html";
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileList = document.getElementById('fileList');
+        const message = document.getElementById('message');
+
+        function showMessage(text, type) {
+            message.textContent = text;
+            message.className = 'message ' + type;
+            message.style.display = 'block';
+            setTimeout(() => {
+                message.style.display = 'none';
+            }, 3000);
+        }
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                uploadFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                uploadFile(e.target.files[0]);
+            }
+        });
+
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                showMessage('正在上传...', 'success');
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showMessage('上传成功！', 'success');
+                    loadFiles();
+                    fileInput.value = '';
+                } else {
+                    showMessage('上传失败: ' + result.detail, 'error');
+                }
+            } catch (error) {
+                showMessage('上传失败: ' + error.message, 'error');
+            }
+        }
+
+        async function loadFiles() {
+            try {
+                fileList.innerHTML = '<div class="loading">加载中...</div>';
+                const response = await fetch('/api/files');
+                const result = await response.json();
+
+                if (response.ok && result.files.length > 0) {
+                    fileList.innerHTML = result.files.map(file => `
+                        <div class="file-item">
+                            <div class="file-info">
+                                <div class="file-icon">📄</div>
+                                <div class="file-details">
+                                    <div class="file-name">${escapeHtml(file.filename)}</div>
+                                    <div class="file-meta">
+                                        ${file.filetype} | ${new Date(file.uploadtime).toLocaleString('zh-CN')}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="file-actions">
+                                <a href="/api/files/${file.id}" class="btn btn-download" download>下载</a>
+                                <button class="btn btn-delete" onclick="deleteFile(${file.id})">删除</button>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    fileList.innerHTML = '<div style="text-align: center; color: #999; padding: 20px;">暂无文件</div>';
+                }
+            } catch (error) {
+                fileList.innerHTML = '<div style="text-align: center; color: #dc3545; padding: 20px;">加载失败</div>';
+            }
+        }
+
+        async function deleteFile(fileId) {
+            if (!confirm('确定要删除这个文件吗？')) {
                 return;
             }
 
-            let res = await fetch(`/api/check?token=${token}`);
-            if (res.ok) {
-                let data = await res.json();
-                document.getElementById("msg").innerText = "欢迎你：" + data.username;
-                // 登录成功，启动烟花特效
-                startFireworks();
-            } else {
-                alert("登录已过期，请重新登录");
-                localStorage.removeItem("token");
-                location.href = "login.html";
-            }
-        }
+            try {
+                const response = await fetch(`/api/files/${fileId}`, {
+                    method: 'DELETE'
+                });
 
-        function logout() {
-            localStorage.removeItem("token");
-            location.href = "login.html";
-        }
-
-        // 烟花特效
-        const canvas = document.getElementById('fireworks');
-        const ctx = canvas.getContext('2d');
-        let fireworksInterval;
-
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
-
-        function random(min, max) {
-            return Math.random() * (max - min) + min;
-        }
-
-        class Particle {
-            constructor(x, y, color) {
-                this.x = x;
-                this.y = y;
-                this.speed = random(2, 6);
-                this.angle = random(0, Math.PI * 2);
-                this.gravity = 0.05;
-                this.vx = Math.cos(this.angle) * this.speed;
-                this.vy = Math.sin(this.angle) * this.speed;
-                this.alpha = 1;
-                this.decay = random(0.005, 0.01);
-                this.color = color;
-            }
-            update() {
-                this.vy += this.gravity;
-                this.x += this.vx;
-                this.y += this.vy;
-                this.alpha -= this.decay;
-            }
-            draw() {
-                ctx.save();
-                ctx.globalAlpha = this.alpha;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
-                ctx.fillStyle = this.color;
-                ctx.fill();
-                ctx.restore();
-            }
-        }
-
-        let particles = [];
-        const colors = ['#ff6b9d', '#ffd93d', '#61dafb', '#ff9f1c', '#7B2CBF', '#51d660'];
-
-        function createFirework() {
-            const x = random(50, canvas.width - 50);
-            const y = random(50, canvas.height / 2);
-            const color = colors[Math.floor(random(0, colors.length))];
-            
-            for (let i = 0; i < 100; i++) {
-                particles.push(new Particle(x, y, color));
-            }
-        }
-
-        function animate() {
-            ctx.fillStyle = 'rgba(10, 10, 10, 0.2)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            for (let i = particles.length - 1; i >= 0; i--) {
-                const p = particles[i];
-                p.update();
-                p.draw();
-                
-                if (p.alpha <= 0) {
-                    particles.splice(i, 1);
+                if (response.ok) {
+                    showMessage('删除成功！', 'success');
+                    loadFiles();
+                } else {
+                    const result = await response.json();
+                    showMessage('删除失败: ' + result.detail, 'error');
                 }
+            } catch (error) {
+                showMessage('删除失败: ' + error.message, 'error');
             }
-            requestAnimationFrame(animate);
         }
 
-        // 启动烟花
-        function startFireworks() {
-            animate();
-            fireworksInterval = setInterval(createFirework, 800);
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
-        // 页面加载后执行登录验证
-        checkLogin();
+        loadFiles();
     </script>
 </body>
 </html>
