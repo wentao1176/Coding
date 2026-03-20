@@ -23,7 +23,7 @@ def init_database():
         cursor = conn.cursor()
         
         create_table_query = """
-        CREATE TABLE IF NOT EXISTS users (
+        CREATE TABLE IF NOT EXISTS user_files (
             id SERIAL PRIMARY KEY,
             username VARCHAR(255) NOT NULL UNIQUE,
             password VARCHAR(255) NOT NULL,
@@ -52,13 +52,13 @@ def register(user: User):
     cursor = conn.cursor(dictionary=True)
     
     try:
-        cursor.execute("SELECT username FROM users WHERE username = %s", (user.username,))
+        cursor.execute("SELECT username FROM user_files WHERE username = %s", (user.username,))
         if cursor.fetchone():
             print(f"用户名已存在: {user.username}")
             raise HTTPException(status_code=400, detail="用户名已存在")
         
         hashed_pw = bcrypt.hashpw(user.password.encode(), bcrypt.gensalt()).decode()
-        cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)", 
+        cursor.execute("INSERT INTO user_files (username, password) VALUES (%s, %s)", 
                       (user.username, hashed_pw))
         conn.commit()
         
@@ -77,7 +77,7 @@ def login(user: User):
     cursor = conn.cursor(dictionary=True)
     
     try:
-        cursor.execute("SELECT * FROM users WHERE username = %s", (user.username,))
+        cursor.execute("SELECT * FROM user_files WHERE username = %s", (user.username,))
         db_user = cursor.fetchone()
         
         if not db_user:
@@ -116,7 +116,7 @@ def get_users():
     cursor = conn.cursor(dictionary=True)
     
     try:
-        cursor.execute("SELECT username FROM users")
+        cursor.execute("SELECT username FROM user_files")
         users = cursor.fetchall()
         user_list = [user['username'] for user in users]
         return {"status": "ok", "users": user_list, "count": len(user_list)}
