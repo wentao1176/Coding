@@ -22,19 +22,28 @@ def init_database():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        create_table_query = """
-        CREATE TABLE IF NOT EXISTS user_files (
-            id SERIAL PRIMARY KEY,
-            username VARCHAR(255) NOT NULL UNIQUE,
-            password VARCHAR(255) NOT NULL,
-            created_at TIMESTAMP DEFAULT NOW()
-        )
-        """
-        cursor.execute(create_table_query)
-        conn.commit()
+        # 检查表是否存在，如果不存在则创建
+        cursor.execute("SELECT EXISTS(SELECT FROM information_schema.tables WHERE table_name = 'user_files')")
+        table_exists = cursor.fetchone()[0]
+        
+        if not table_exists:
+            create_table_query = """
+            CREATE TABLE user_files (
+                id SERIAL PRIMARY KEY,
+                filename VARCHAR(255),
+                filetype VARCHAR(100),
+                filedata TEXT,
+                uploadtime TIMESTAMP DEFAULT NOW()
+            )
+            """
+            cursor.execute(create_table_query)
+            conn.commit()
+            print("数据库表创建成功")
+        else:
+            print("数据库表已存在")
+            
         cursor.close()
         conn.close()
-        print("数据库表初始化成功")
     except Exception as e:
         print(f"初始化数据库失败: {e}")
 
@@ -49,17 +58,23 @@ def register(user: User):
     print(f"收到注册请求: {user.username}")
     
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
     
     try:
-        cursor.execute("SELECT username FROM user_files WHERE username = %s", (user.username,))
+        # 检查用户名是否已存在
+        cursor.execute("SELECT id FROM user_files WHERE filename = %s AND filetype = 'user'", (user.username,))
         if cursor.fetchone():
             print(f"用户名已存在: {user.username}")
             raise HTTPException(status_code=400, detail="用户名已存在")
         
+        # 密码加密
         hashed_pw = bcrypt.hashpw(user.password.encode(), bcrypt.gensalt()).decode()
-        cursor.execute("INSERT INTO user_files (username, password) VALUES (%s, %s)", 
-                      (user.username, hashed_pw))
+        
+        # 插入用户数据（使用 filename 存储用户名，filedata 存储密码，filetype 标记为 'user'）
+        cursor.execute(
+            "INSERT INTO user_files (filename, filetype, filedata) VALUES (%s, %s, %s)", 
+            (user.username, 'user', hashed_pw)
+        )
         conn.commit()
         
         print(f"用户注册成功: {user.username}")
@@ -74,18 +89,23 @@ def register(user: User):
 @app.post("/api/login")
 def login(user: User):
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
     
     try:
-        cursor.execute("SELECT * FROM user_files WHERE username = %s", (user.username,))
-        db_user = cursor.fetchone()
+        # 查询用户信息（filename=用户名，filetype=user）
+        cursor.execute("SELECT filedata FROM user_files WHERE filename = %s AND filetype = 'user'", (user.username,))
+        result = cursor.fetchone()
         
-        if not db_user:
+        if not result:
             raise HTTPException(status_code=401, detail="用户名不存在")
         
-        if not bcrypt.checkpw(user.password.encode(), db_user['password'].encode()):
+        hashed_password = result[0]
+        
+        # 验证密码
+        if not bcrypt.checkpw(user.password.encode(), hashed_password.encode()):
             raise HTTPException(status_code=401, detail="密码错误")
         
+        # 生成 token
         token = jwt.encode(
             {"username": user.username, "exp": datetime.utcnow() + timedelta(days=7)},
             "my-secret-key",
@@ -113,12 +133,13 @@ def get_users():
     print(f"获取用户列表请求")
     
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
     
     try:
-        cursor.execute("SELECT username FROM user_files")
+        # 查询所有用户（filetype='user'）
+        cursor.execute("SELECT filename FROM user_files WHERE filetype = 'user'")
         users = cursor.fetchall()
-        user_list = [user['username'] for user in users]
+        user_list = [user[0] for user in users]
         return {"status": "ok", "users": user_list, "count": len(user_list)}
     except Exception as e:
         print(f"数据库操作失败: {e}")
