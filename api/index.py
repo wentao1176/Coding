@@ -1,10 +1,11 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+import bcrypt
+import jwt
 import psycopg2
 from psycopg2 import sql
 import os
-import base64
-from datetime import datetime
+from datetime import datetime, timedelta
 
 app = FastAPI()
 
@@ -22,12 +23,11 @@ def init_database():
         cursor = conn.cursor()
         
         create_table_query = """
-        CREATE TABLE IF NOT EXISTS user_files (
+        CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
-            filename VARCHAR(255) NOT NULL,
-            filetype VARCHAR(100) NOT NULL,
-            filedata TEXT NOT NULL,
-            uploadtime TIMESTAMP DEFAULT NOW()
+            username VARCHAR(255) NOT NULL UNIQUE,
+            password VARCHAR(255) NOT NULL,
+            created_at TIMESTAMP DEFAULT NOW()
         )
         """
         cursor.execute(create_table_query)
@@ -40,112 +40,89 @@ def init_database():
 
 init_database()
 
-@app.post("/api/upload")
-async def upload_file(file: UploadFile = File(...)):
+class User(BaseModel):
+    username: str
+    password: str
+
+@app.post("/api/register")
+def register(user: User):
+    print(f"收到注册请求: {user.username}")
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
     try:
-        content = await file.read()
-        filename = file.filename
-        filetype = file.content_type or "application/octet-stream"
-        filedata = base64.b64encode(content).decode('utf-8')
+        cursor.execute("SELECT username FROM users WHERE username = %s", (user.username,))
+        if cursor.fetchone():
+            print(f"用户名已存在: {user.username}")
+            raise HTTPException(status_code=400, detail="用户名已存在")
         
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        insert_query = """
-        INSERT INTO user_files (filename, filetype, filedata)
-        VALUES (%s, %s, %s)
-        RETURNING id, uploadtime
-        """
-        cursor.execute(insert_query, (filename, filetype, filedata))
-        result = cursor.fetchone()
+        hashed_pw = bcrypt.hashpw(user.password.encode(), bcrypt.gensalt()).decode()
+        cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)", 
+                      (user.username, hashed_pw))
         conn.commit()
         
+        print(f"用户注册成功: {user.username}")
+        return {"status": "ok", "msg": "注册成功"}
+    except Exception as e:
+        print(f"数据库操作失败: {e}")
+        raise HTTPException(status_code=500, detail="数据库操作失败")
+    finally:
         cursor.close()
         conn.close()
-        
-        return JSONResponse(content={
-            "status": "success",
-            "file_id": result[0],
-            "filename": filename,
-            "filetype": filetype,
-            "uploadtime": result[1].isoformat()
-        })
-    except Exception as e:
-        print(f"文件上传失败: {e}")
-        raise HTTPException(status_code=500, detail=f"文件上传失败: {str(e)}")
 
-@app.get("/api/files")
-async def get_files():
+@app.post("/api/login")
+def login(user: User):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE username = %s", (user.username,))
+        db_user = cursor.fetchone()
         
-        cursor.execute("SELECT id, filename, filetype, uploadtime FROM user_files ORDER BY uploadtime DESC")
-        files = cursor.fetchall()
+        if not db_user:
+            raise HTTPException(status_code=401, detail="用户名不存在")
         
-        file_list = []
-        for file in files:
-            file_list.append({
-                "id": file[0],
-                "filename": file[1],
-                "filetype": file[2],
-                "uploadtime": file[3].isoformat()
-            })
+        if not bcrypt.checkpw(user.password.encode(), db_user['password'].encode()):
+            raise HTTPException(status_code=401, detail="密码错误")
         
+        token = jwt.encode(
+            {"username": user.username, "exp": datetime.utcnow() + timedelta(days=7)},
+            "my-secret-key",
+            algorithm="HS256"
+        )
+        return {"status": "ok", "token": token}
+    except Exception as e:
+        print(f"数据库操作失败: {e}")
+        raise HTTPException(status_code=500, detail="数据库操作失败")
+    finally:
         cursor.close()
         conn.close()
-        
-        return JSONResponse(content={"status": "success", "files": file_list})
-    except Exception as e:
-        print(f"获取文件列表失败: {e}")
-        raise HTTPException(status_code=500, detail=f"获取文件列表失败: {str(e)}")
 
-@app.get("/api/files/{file_id}")
-async def get_file(file_id: int):
+@app.get("/api/check")
+def check(token: str):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute("SELECT filename, filetype, filedata FROM user_files WHERE id = %s", (file_id,))
-        file = cursor.fetchone()
-        
-        if not file:
-            raise HTTPException(status_code=404, detail="文件不存在")
-        
-        filename, filetype, filedata = file
-        content = base64.b64decode(filedata)
-        
-        cursor.close()
-        conn.close()
-        
-        from fastapi.responses import Response
-        return Response(content=content, media_type=filetype, headers={
-            "Content-Disposition": f'attachment; filename="{filename}"'
-        })
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"获取文件失败: {e}")
-        raise HTTPException(status_code=500, detail=f"获取文件失败: {str(e)}")
+        data = jwt.decode(token, "my-secret-key", algorithms=["HS256"])
+        return {"status": "ok", "username": data["username"]}
+    except:
+        raise HTTPException(status_code=401, detail="未登录")
 
-@app.delete("/api/files/{file_id}")
-async def delete_file(file_id: int):
+@app.get("/api/users")
+def get_users():
+    """获取所有用户列表"""
+    print(f"获取用户列表请求")
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute("DELETE FROM user_files WHERE id = %s", (file_id,))
-        conn.commit()
-        
-        if cursor.rowcount == 0:
-            raise HTTPException(status_code=404, detail="文件不存在")
-        
+        cursor.execute("SELECT username FROM users")
+        users = cursor.fetchall()
+        user_list = [user['username'] for user in users]
+        return {"status": "ok", "users": user_list, "count": len(user_list)}
+    except Exception as e:
+        print(f"数据库操作失败: {e}")
+        raise HTTPException(status_code=500, detail="数据库操作失败")
+    finally:
         cursor.close()
         conn.close()
-        
-        return JSONResponse(content={"status": "success", "message": "文件删除成功"})
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"删除文件失败: {e}")
-        raise HTTPException(status_code=500, detail=f"删除文件失败: {str(e)}")
