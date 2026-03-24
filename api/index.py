@@ -11,13 +11,21 @@ app = FastAPI()
 
 def get_db_connection():
     try:
-        conn = psycopg2.connect(os.environ["DATABASE_URL"])
+        db_url = os.environ.get("DATABASE_URL")
+        if not db_url:
+            print("错误：环境变量 DATABASE_URL 未设置")
+            raise HTTPException(status_code=500, detail="环境变量 DATABASE_URL 未设置")
+        
+        print(f"尝试连接数据库，URL: {db_url[:20]}...")
+        conn = psycopg2.connect(db_url)
+        print("数据库连接成功")
         return conn
     except Exception as e:
-        print(f"数据库连接失败: {e}")
-        raise HTTPException(status_code=500, detail="数据库连接失败")
+        print(f"数据库连接失败: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail=f"数据库连接失败: {type(e).__name__}: {str(e)}")
 
 def init_database():
+    """初始化数据库表（仅在需要时执行）"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -44,10 +52,10 @@ def init_database():
             
         cursor.close()
         conn.close()
+        return True
     except Exception as e:
-        print(f"初始化数据库失败: {e}")
-
-init_database()
+        print(f"初始化数据库失败: {type(e).__name__}: {e}")
+        return False
 
 class User(BaseModel):
     username: str
@@ -56,6 +64,10 @@ class User(BaseModel):
 @app.post("/api/register")
 def register(user: User):
     print(f"收到注册请求: {user.username}")
+    
+    # 先初始化数据库
+    if not init_database():
+        raise HTTPException(status_code=500, detail="数据库初始化失败")
     
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -80,14 +92,18 @@ def register(user: User):
         print(f"用户注册成功: {user.username}")
         return {"status": "ok", "msg": "注册成功"}
     except Exception as e:
-        print(f"数据库操作失败: {e}")
-        raise HTTPException(status_code=500, detail="数据库操作失败")
+        print(f"数据库操作失败: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail=f"数据库操作失败: {type(e).__name__}: {str(e)}")
     finally:
         cursor.close()
         conn.close()
 
 @app.post("/api/login")
 def login(user: User):
+    # 先初始化数据库
+    if not init_database():
+        raise HTTPException(status_code=500, detail="数据库初始化失败")
+    
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -113,8 +129,8 @@ def login(user: User):
         )
         return {"status": "ok", "token": token}
     except Exception as e:
-        print(f"数据库操作失败: {e}")
-        raise HTTPException(status_code=500, detail="数据库操作失败")
+        print(f"数据库操作失败: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail=f"数据库操作失败: {type(e).__name__}: {str(e)}")
     finally:
         cursor.close()
         conn.close()
