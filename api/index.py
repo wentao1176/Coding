@@ -17,11 +17,32 @@ def get_db_connection():
             raise HTTPException(status_code=500, detail="环境变量 DATABASE_URL 未设置")
         
         print(f"尝试连接数据库，URL: {db_url[:20]}...")
-        conn = psycopg2.connect(db_url)
+        
+        # 添加连接参数，增加稳定性
+        conn = psycopg2.connect(
+            db_url,
+            connect_timeout=10,
+            options='-c statement_timeout=30000'
+        )
+        
         print("数据库连接成功")
         return conn
     except Exception as e:
         print(f"数据库连接失败: {type(e).__name__}: {e}")
+        
+        # 尝试使用备用连接方式（如果是 Supabase）
+        if "supabase" in db_url:
+            print("尝试使用备用连接方式...")
+            try:
+                # 尝试使用 IPv4 连接
+                import socket
+                socket.setdefaulttimeout(10)
+                conn = psycopg2.connect(db_url)
+                print("备用连接方式成功")
+                return conn
+            except Exception as e2:
+                print(f"备用连接方式也失败: {type(e2).__name__}: {e2}")
+        
         raise HTTPException(status_code=500, detail=f"数据库连接失败: {type(e).__name__}: {str(e)}")
 
 def init_database():
