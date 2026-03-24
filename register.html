@@ -1,31 +1,243 @@
 <!DOCTYPE html>
-<title>注册</title>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>注册</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+            padding: 20px;
+        }
+        .register-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+            animation: fadeInUp 0.6s ease-out;
+        }
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(45deg, #f093fb, #f5576c);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        .logo p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        .form-group {
+            margin-bottom: 25px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 0.9rem;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #f5576c;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(245, 87, 108, 0.1);
+        }
+        .register-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(45deg, #f093fb, #f5576c);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+        }
+        .register-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(245, 87, 108, 0.3);
+        }
+        .register-btn:active {
+            transform: translateY(0);
+        }
+        .login-link {
+            text-align: center;
+            color: #666;
+        }
+        .login-link a {
+            color: #f5576c;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+        .login-link a:hover {
+            color: #f093fb;
+            text-decoration: underline;
+        }
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            display: none;
+        }
+        .success-message {
+            background: #efe;
+            color: #3c3;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            display: none;
+        }
+    </style>
+</head>
 <body>
-  <h1>注册</h1>
-  <input id="user" placeholder="用户名"><br>
-  <input id="pwd" type="password" placeholder="密码"><br>
-  <button onclick="register()">注册</button>
-  <p><a href="login.html">已有账号？去登录</a></p>
+    <div class="register-container">
+        <div class="logo">
+            <h1>宣文韬</h1>
+            <p>创建账号</p>
+        </div>
+        
+        <div class="error-message" id="error-message"></div>
+        <div class="success-message" id="success-message"></div>
+        
+        <div class="form-group">
+            <label for="user">用户名</label>
+            <input id="user" type="text" placeholder="请输入用户名" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="pwd">密码</label>
+            <input id="pwd" type="password" placeholder="请输入密码" required>
+        </div>
+        
+        <button class="register-btn" onclick="register()">注册</button>
+        
+        <div class="login-link">
+            已有账号？<a href="login.html">立即登录</a>
+        </div>
+    </div>
 
-  <script>
-    async function register() {
-      let username = document.getElementById("user").value;
-      let password = document.getElementById("pwd").value;
+    <script>
+        async function register() {
+            const username = document.getElementById("user").value;
+            const password = document.getElementById("pwd").value;
+            const errorMessage = document.getElementById("error-message");
+            const successMessage = document.getElementById("success-message");
+            const registerBtn = document.querySelector('.register-btn');
+            
+            // 简单验证
+            if (!username || !password) {
+                showError('请输入用户名和密码');
+                return;
+            }
+            
+            if (password.length < 6) {
+                showError('密码长度至少6位');
+                return;
+            }
+            
+            // 显示加载状态
+            registerBtn.innerHTML = '注册中...';
+            registerBtn.disabled = true;
+            
+            try {
+                const res = await fetch("/api/register", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username, password })
+                });
 
-      let res = await fetch("/api/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
-      });
-
-      let data = await res.json();
-      if (res.ok) {
-        alert("注册成功！请登录");
-        location.href = "login.html";
-      } else {
-        alert(data.detail);
-      }
-    }
-  </script>
+                const data = await res.json();
+                
+                if (res.ok) {
+                    showSuccess('注册成功！正在跳转到登录页面...');
+                    setTimeout(() => {
+                        location.href = "login.html";
+                    }, 2000);
+                } else {
+                    showError(data.detail || '注册失败');
+                }
+            } catch (error) {
+                showError('网络错误，请稍后重试');
+                console.error('注册错误:', error);
+            } finally {
+                registerBtn.innerHTML = '注册';
+                registerBtn.disabled = false;
+            }
+        }
+        
+        function showError(message) {
+            const errorMessage = document.getElementById('error-message');
+            const successMessage = document.getElementById('success-message');
+            
+            successMessage.style.display = 'none';
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            
+            // 3秒后自动隐藏
+            setTimeout(() => {
+                errorMessage.style.display = 'none';
+            }, 3000);
+        }
+        
+        function showSuccess(message) {
+            const errorMessage = document.getElementById('error-message');
+            const successMessage = document.getElementById('success-message');
+            
+            errorMessage.style.display = 'none';
+            successMessage.textContent = message;
+            successMessage.style.display = 'block';
+        }
+        
+        // 回车键注册
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                register();
+            }
+        });
+    </script>
 </body>
 </html>
