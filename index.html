@@ -134,16 +134,23 @@
             from { opacity: 0; }
             to { opacity: 1; }
         }
+        .games-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            max-width: 600px;
+            margin: 0 auto;
+            animation: fadeInUp 1s ease-out 1s both;
+        }
         .game-button {
             background: rgba(255, 255, 255, 0.15);
             backdrop-filter: blur(10px);
-            padding: 40px 60px;
+            padding: 40px 30px;
             border-radius: 25px;
             border: 2px solid rgba(255, 255, 255, 0.3);
             text-align: center;
             cursor: pointer;
             transition: all 0.4s ease;
-            animation: fadeInUp 1s ease-out 1s both;
             min-width: 200px;
         }
         .game-button:hover {
@@ -247,10 +254,17 @@
             最帅
         </h1>
         <p class="subtitle">欢迎!</p>
-        <div class="game-button" onclick="startMinesweeper()">
-            <span class="game-icon">💣</span>
-            <div class="game-title">扫雷游戏</div>
-            <div class="game-desc">点击开始游戏</div>
+        <div class="games-container">
+            <div class="game-button" onclick="startMinesweeper()">
+                <span class="game-icon">💣</span>
+                <div class="game-title">扫雷游戏</div>
+                <div class="game-desc">经典扫雷游戏</div>
+            </div>
+            <div class="game-button" onclick="startSnakeGame()">
+                <span class="game-icon">🐍</span>
+                <div class="game-title">贪吃蛇游戏</div>
+                <div class="game-desc">经典贪吃蛇游戏</div>
+            </div>
         </div>
     </div>
 
@@ -290,6 +304,12 @@
         function startMinesweeper() {
             // 跳转到扫雷游戏页面
             location.href = "minesweeper.html";
+        }
+        
+        // 开始贪吃蛇游戏
+        function startSnakeGame() {
+            // 跳转到贪吃蛇游戏页面
+            location.href = "snake.html";
         }
 
         function logout() {
