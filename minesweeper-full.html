@@ -508,6 +508,9 @@
         }
         
         function resetGame() {
+            stopTimer();
+            document.getElementById('timer').textContent = '0';
+            elapsedTime = 0;
             startGame('easy');
         }
         
