@@ -124,12 +124,47 @@
             display: flex;
             justify-content: center;
             margin-bottom: 20px;
+            position: relative;
         }
         .game-board {
             border: 3px solid #d0d0d0;
             border-radius: 10px;
             background: #f0f0f0;
             position: relative;
+        }
+        .joystick-container {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            display: none;
+            z-index: 1000;
+        }
+        .joystick {
+            width: 120px;
+            height: 120px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 50%;
+            position: relative;
+            backdrop-filter: blur(10px);
+        }
+        .joystick-knob {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            touch-action: none;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            transition: all 0.1s ease;
+        }
+        @media (max-width: 768px) {
+            .joystick-container {
+                display: block;
+            }
         }
         .game-grid {
             display: grid;
@@ -258,11 +293,20 @@
             </div>
         </div>
         
+        <!-- 虚拟摇杆 -->
+        <div class="joystick-container">
+            <div class="joystick" id="joystick">
+                <div class="joystick-knob" id="joystick-knob"></div>
+            </div>
+        </div>
+        
         <div class="game-status" id="game-status"></div>
         
         <div class="instructions">
             <h3>游戏说明</h3>
-            <p>使用方向键（↑↓←→）控制蛇的移动方向，吃到食物加分并增长身体。撞到墙壁或自己的身体游戏结束。</p>
+            <p>电脑端：使用方向键（↑↓←→）或 WASD 键控制蛇的移动方向<br>
+            手机端：使用左下角的虚拟摇杆控制方向<br>
+            吃到食物加分并增长身体。撞到墙壁或自己的身体游戏结束。</p>
         </div>
         
         <div class="back-link">
@@ -438,29 +482,115 @@
             startGame();
         }
         
-        // 键盘控制
+        // 键盘控制（方向键和WASD）
         document.addEventListener('keydown', (e) => {
             if (!game || game.gameOver) return;
             
             switch (e.key) {
                 case 'ArrowUp':
+                case 'w':
+                case 'W':
                     e.preventDefault();
                     game.changeDirection('up');
                     break;
                 case 'ArrowDown':
+                case 's':
+                case 'S':
                     e.preventDefault();
                     game.changeDirection('down');
                     break;
                 case 'ArrowLeft':
+                case 'a':
+                case 'A':
                     e.preventDefault();
                     game.changeDirection('left');
                     break;
                 case 'ArrowRight':
+                case 'd':
+                case 'D':
                     e.preventDefault();
                     game.changeDirection('right');
                     break;
             }
         });
+        
+        // 虚拟摇杆控制
+        function initJoystick() {
+            const joystick = document.getElementById('joystick');
+            const knob = document.getElementById('joystick-knob');
+            const joystickRect = joystick.getBoundingClientRect();
+            const radius = joystickRect.width / 2;
+            let isDragging = false;
+            let lastDirection = '';
+            
+            function getDirection(dx, dy) {
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance< 15) return '';
+                
+                const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+                
+                if (angle >-45 && angle<= 45) return 'right';
+                if (angle >45 && angle<= 135) return 'down';
+                if (angle >135 || angle <= -135) return 'left';
+                if (angle >-135 && angle <= -45) return 'up';
+                
+                return '';
+            }
+            
+            function updateKnobPosition(clientX, clientY) {
+                const centerX = joystickRect.left + radius;
+                const centerY = joystickRect.top + radius;
+                
+                let dx = clientX - centerX;
+                let dy = clientY - centerY;
+                
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance > radius) {
+                    const ratio = radius / distance;
+                    dx *= ratio;
+                    dy *= ratio;
+                }
+                
+                knob.style.transform = `translate(${dx}px, ${dy}px)`;
+                
+                const direction = getDirection(dx, dy);
+                if (direction && direction !== lastDirection && game && !game.gameOver) {
+                    game.changeDirection(direction);
+                    lastDirection = direction;
+                }
+            }
+            
+            function resetKnob() {
+                knob.style.transform = 'translate(-50%, -50%)';
+                isDragging = false;
+                lastDirection = '';
+            }
+            
+            knob.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                isDragging = true;
+            });
+            
+            knob.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                isDragging = true;
+            });
+            
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    updateKnobPosition(e.clientX, e.clientY);
+                }
+            });
+            
+            document.addEventListener('touchmove', (e) => {
+                if (isDragging && e.touches.length > 0) {
+                    updateKnobPosition(e.touches[0].clientX, e.touches[0].clientY);
+                }
+            });
+            
+            document.addEventListener('mouseup', resetKnob);
+            document.addEventListener('touchend', resetKnob);
+        }
         
         // 难度选择
         document.querySelectorAll('.difficulty-btn').forEach(btn => {
@@ -478,6 +608,7 @@
         // 页面加载时开始游戏
         window.addEventListener('load', () => {
             startGame();
+            initJoystick();
         });
     </script>
 </body>
