@@ -557,6 +557,32 @@
         });
         
         window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const level = urlParams.get('level') || 'easy';
+            
+            // 设置难度
+            switch (level) {
+                case 'easy':
+                    currentSpeed = 150;
+                    break;
+                case 'medium':
+                    currentSpeed = 100;
+                    break;
+                case 'hard':
+                    currentSpeed = 70;
+                    break;
+                default:
+                    currentSpeed = 150;
+            }
+            
+            // 更新按钮状态
+            document.querySelectorAll('.difficulty-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (parseInt(btn.dataset.speed) === currentSpeed) {
+                    btn.classList.add('active');
+                }
+            });
+            
             startGame();
             initJoystick();
         });

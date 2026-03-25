@@ -515,7 +515,9 @@
         }
         
         window.addEventListener('load', () => {
-            startGame('easy');
+            const urlParams = new URLSearchParams(window.location.search);
+            const level = urlParams.get('level') || 'easy';
+            startGame(level);
         });
     </script>
 </body>
