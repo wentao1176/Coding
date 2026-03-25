@@ -296,3 +296,41 @@ def admin_reset_password(token: str, username: str, new_password: str):
     except Exception as e:
         print(f"管理员重置密码失败: {e}")
         raise HTTPException(status_code=500, detail="重置失败")
+
+
+@app.post("/api/admin/delete-user")
+def admin_delete_user(token: str, username: str):
+    """管理员删除用户账号"""
+    try:
+        # 验证管理员权限
+        data = jwt.decode(token, "admin-secret-key", algorithms=["HS256"])
+        if data.get("role") != "admin":
+            raise HTTPException(status_code=401, detail="权限不足")
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        try:
+            # 检查用户是否存在
+            cursor.execute("SELECT id FROM user_files WHERE filename = %s AND filetype = 'user'", (username,))
+            if not cursor.fetchone():
+                raise HTTPException(status_code=404, detail="用户不存在")
+            
+            # 删除用户
+            cursor.execute(
+                "DELETE FROM user_files WHERE filename = %s AND filetype = 'user'",
+                (username,)
+            )
+            conn.commit()
+            
+            return {"status": "ok", "msg": "用户删除成功"}
+        finally:
+            cursor.close()
+            conn.close()
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="管理员 token 已过期")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="管理员 token 无效")
+    except Exception as e:
+        print(f"管理员删除用户失败: {e}")
+        raise HTTPException(status_code=500, detail="删除失败")

@@ -148,6 +148,14 @@
             transform: translateY(-1px);
             box-shadow: 0 5px 10px rgba(33, 150, 243, 0.3);
         }
+        .delete-btn {
+            background: linear-gradient(45deg, #f44336, #d32f2f);
+            color: white;
+        }
+        .delete-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 10px rgba(244, 67, 54, 0.3);
+        }
         .modal {
             display: none;
             position: fixed;
@@ -350,6 +358,23 @@
             </div>
         </div>
     </div>
+    
+    <!-- 删除用户模态框 -->
+    <div class="modal" id="delete-modal">
+        <div class="modal-content">
+            <h2 class="modal-title">删除用户确认</h2>
+            <div style="margin-bottom: 20px; text-align: center;">
+                <p style="font-size: 1.1rem; color: #d32f2f; font-weight: 600;">⚠️ 警告</p>
+                <p>确定要删除用户 <strong id="delete-username-display"></strong> 吗？</p>
+                <p style="color: #666; font-size: 0.9rem; margin-top: 10px;">此操作不可撤销！用户数据将永久删除。</p>
+            </div>
+            <div class="message" id="delete-message"></div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="closeDeleteModal()">取消</button>
+                <button class="btn" style="background: linear-gradient(45deg, #f44336, #d32f2f); color: white;" onclick="deleteUser()">确认删除</button>
+            </div>
+        </div>
+    </div>
 
     <script>
         let currentUsername = '';
@@ -416,6 +441,7 @@
                     <td>
                         <button class="action-btn copy-btn" onclick="copyPassword('${user.password_hash}')">复制哈希</button>
                         <button class="action-btn reset-btn" onclick="openResetModal('${user.username}')">重置密码</button>
+                        <button class="action-btn delete-btn" onclick="openDeleteModal('${user.username}')">删除用户</button>
                     </td>
                 `;
                 tbody.appendChild(row);
@@ -508,10 +534,64 @@
             }
         }
         
+        // 打开删除用户模态框
+        function openDeleteModal(username) {
+            currentUsername = username;
+            document.getElementById('delete-username-display').textContent = username;
+            document.getElementById('delete-message').style.display = 'none';
+            document.getElementById('delete-modal').style.display = 'flex';
+        }
+        
+        // 关闭删除用户模态框
+        function closeDeleteModal() {
+            document.getElementById('delete-modal').style.display = 'none';
+        }
+        
+        // 删除用户
+        async function deleteUser() {
+            const token = localStorage.admin_token;
+            const deleteMessage = document.getElementById('delete-message');
+            
+            try {
+                const res = await fetch(`/api/admin/delete-user?token=${token}&username=${currentUsername}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (res.ok) {
+                    deleteMessage.textContent = '用户删除成功';
+                    deleteMessage.className = 'message success';
+                    deleteMessage.style.display = 'block';
+                    // 重新加载用户数据
+                    setTimeout(async () => {
+                        closeDeleteModal();
+                        await loadUsers();
+                        showMessage('用户已删除', 'success');
+                    }, 1500);
+                } else {
+                    const error = await res.json();
+                    deleteMessage.textContent = error.detail || '删除失败';
+                    deleteMessage.className = 'message error';
+                    deleteMessage.style.display = 'block';
+                }
+            } catch (error) {
+                deleteMessage.textContent = '网络错误，请稍后重试';
+                deleteMessage.className = 'message error';
+                deleteMessage.style.display = 'block';
+                console.error('删除用户失败:', error);
+            }
+        }
+        
         // 点击模态框外部关闭
         document.getElementById('reset-modal').addEventListener('click', function(e) {
             if (e.target === this) {
                 closeResetModal();
+            }
+        });
+        
+        document.getElementById('delete-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeDeleteModal();
             }
         });
         
