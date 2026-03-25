@@ -237,7 +237,7 @@
         <button onclick="logout()">退出登录</button>
     </div>
     
-    <div class="main-content">
+    <div class="main-content" id="main-content" style="display: none;">
         <h1 class="title">
             宣文韬<br>
             最帅
@@ -266,26 +266,27 @@
             }
 
             try {
-                const res = await fetch(`/api/check?token=${token}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    document.getElementById("welcome-msg").innerText = `欢迎你：${data.username}`;
-                    document.getElementById("loading").style.display = 'none';
-                    document.getElementById("user-info").style.display = 'block';
-                    // 登录成功，启动烟花特效
-                    startFireworks();
-                    // 获取用户统计信息
-                    await fetchStats();
-                } else {
-                    alert("登录已过期，请重新登录");
-                    localStorage.removeItem("token");
-                    location.href = "login.html";
-                }
-            } catch (error) {
-                alert("网络错误，请稍后重试");
-                console.error('登录验证错误:', error);
+            const res = await fetch(`/api/check?token=${token}`);
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById("welcome-msg").innerText = `欢迎你：${data.username}`;
                 document.getElementById("loading").style.display = 'none';
+                document.getElementById("user-info").style.display = 'block';
+                document.getElementById("main-content").style.display = 'block';
+                // 登录成功，启动烟花特效
+                startFireworks();
+                // 获取用户统计信息
+                await fetchStats();
+            } else {
+                alert("登录已过期，请重新登录");
+                localStorage.removeItem("token");
+                location.href = "login.html";
             }
+        } catch (error) {
+            alert("网络错误，请稍后重试");
+            console.error('登录验证错误:', error);
+            document.getElementById("loading").style.display = 'none';
+        }
         }
 
         // 获取统计信息
