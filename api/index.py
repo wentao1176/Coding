@@ -82,6 +82,10 @@ class User(BaseModel):
     username: str
     password: str
 
+class AdminLogin(BaseModel):
+    username: str
+    password: str
+
 @app.post("/api/register")
 def register(user: User):
     print(f"收到注册请求: {user.username}")
@@ -187,10 +191,10 @@ def get_users():
 
 
 @app.post("/api/admin/login")
-def admin_login(username: str, password: str):
+def admin_login(admin: AdminLogin):
     """管理员登录"""
     # 简单的管理员验证（实际生产环境应该更复杂）
-    if username == "admin" and password == "admin123":
+    if admin.username == "admin" and admin.password == "admin123":
         token = jwt.encode(
             {"role": "admin", "exp": datetime.utcnow() + timedelta(days=1)},
             "admin-secret-key",
