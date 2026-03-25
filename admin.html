@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理员管理系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            animation: fadeInUp 0.6s ease-out;
+        }
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e1e5e9;
+        }
+        .title {
+            font-size: 2.5rem;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .logout-btn {
+            padding: 12px 24px;
+            background: linear-gradient(45deg, #f06292, #ec407a);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .logout-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(240, 98, 146, 0.3);
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: rgba(102, 126, 234, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+        }
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 0.9rem;
+            color: #666;
+            font-weight: 500;
+        }
+        .table-container {
+            overflow-x: auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #e1e5e9;
+        }
+        th {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        tr:hover {
+            background: rgba(102, 126, 234, 0.05);
+        }
+        .password-hash {
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            color: #666;
+            word-break: break-all;
+            max-width: 300px;
+        }
+        .action-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 5px;
+        }
+        .reset-btn {
+            background: linear-gradient(45deg, #4caf50, #45a049);
+            color: white;
+        }
+        .reset-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 10px rgba(76, 175, 80, 0.3);
+        }
+        .copy-btn {
+            background: linear-gradient(45deg, #2196f3, #0d47a1);
+            color: white;
+        }
+        .copy-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 10px rgba(33, 150, 243, 0.3);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            width: 90%;
+            max-width: 500px;
+            animation: fadeInUp 0.3s ease-out;
+        }
+        .modal-title {
+            font-size: 1.5rem;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 0.9rem;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+        }
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #666;
+        }
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        .message {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            display: none;
+        }
+        .message.success {
+            background: #e8f5e8;
+            color: #2e7d32;
+            border-left: 4px solid #4caf50;
+        }
+        .message.error {
+            background: #ffebee;
+            color: #c62828;
+            border-left: 4px solid #f44336;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .loading-spinner {
+            width: 30px;
+            height: 30px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            .header {
+                flex-direction: column;
+                gap: 20px;
+                text-align: center;
+            }
+            .title {
+                font-size: 2rem;
+            }
+            .stats {
+                grid-template-columns: 1fr;
+            }
+            .table-container {
+                font-size: 0.85rem;
+            }
+            th, td {
+                padding: 10px;
+            }
+            .action-btn {
+                padding: 6px 12px;
+                font-size: 0.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">用户管理系统</h1>
+            <button class="logout-btn" onclick="logout()">退出登录</button>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="user-count">0</div>
+                <div class="stat-label">用户总数</div>
+            </div>
+        </div>
+        
+        <div class="message" id="message"></div>
+        
+        <div class="loading" id="loading">
+            <div class="loading-spinner"></div>
+            <div>加载中...</div>
+        </div>
+        
+        <div class="table-container">
+            <table id="user-table">
+                <thead>
+                    <tr>
+                        <th>用户名</th>
+                        <th>密码哈希</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- 用户数据将在这里动态生成 -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- 重置密码模态框 -->
+    <div class="modal" id="reset-modal">
+        <div class="modal-content">
+            <h2 class="modal-title">重置用户密码</h2>
+            <div class="form-group">
+                <label for="reset-username">用户名</label>
+                <input id="reset-username" type="text" readonly>
+            </div>
+            <div class="form-group">
+                <label for="new-password">新密码</label>
+                <input id="new-password" type="password" placeholder="请输入新密码（至少6位）">
+            </div>
+            <div class="message" id="reset-message"></div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="closeResetModal()">取消</button>
+                <button class="btn btn-primary" onclick="resetPassword()">重置密码</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUsername = '';
+        
+        // 页面加载时验证管理员身份
+        async function checkAdminLogin() {
+            const token = localStorage.admin_token;
+            if (!token) {
+                alert("请先登录管理员账号");
+                location.href = "admin-login.html";
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/api/admin/check?token=${token}`);
+                if (!res.ok) {
+                    throw new Error("管理员身份验证失败");
+                }
+                // 验证成功，加载用户数据
+                await loadUsers();
+            } catch (error) {
+                alert("管理员身份验证失败，请重新登录");
+                localStorage.removeItem("admin_token");
+                location.href = "admin-login.html";
+            }
+        }
+        
+        // 加载用户数据
+        async function loadUsers() {
+            const token = localStorage.admin_token;
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('user-table').style.display = 'none';
+            
+            try {
+                const res = await fetch(`/api/admin/users?token=${token}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    document.getElementById('user-count').textContent = data.count;
+                    renderUsers(data.users);
+                } else {
+                    const error = await res.json();
+                    showMessage(error.detail || '加载失败', 'error');
+                }
+            } catch (error) {
+                showMessage('网络错误，请稍后重试', 'error');
+                console.error('加载用户失败:', error);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('user-table').style.display = 'table';
+            }
+        }
+        
+        // 渲染用户列表
+        function renderUsers(users) {
+            const tbody = document.querySelector('#user-table tbody');
+            tbody.innerHTML = '';
+            
+            users.forEach(user => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><strong>${user.username}</strong></td>
+                    <td><code class="password-hash">${user.password_hash}</code></td>
+                    <td>${user.created_at}</td>
+                    <td>
+                        <button class="action-btn copy-btn" onclick="copyPassword('${user.password_hash}')">复制哈希</button>
+                        <button class="action-btn reset-btn" onclick="openResetModal('${user.username}')">重置密码</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        
+        // 复制密码哈希
+        function copyPassword(hash) {
+            navigator.clipboard.writeText(hash).then(() => {
+                showMessage('密码哈希已复制到剪贴板', 'success');
+            }).catch(() => {
+                showMessage('复制失败', 'error');
+            });
+        }
+        
+        // 打开重置密码模态框
+        function openResetModal(username) {
+            currentUsername = username;
+            document.getElementById('reset-username').value = username;
+            document.getElementById('new-password').value = '';
+            document.getElementById('reset-message').style.display = 'none';
+            document.getElementById('reset-modal').style.display = 'flex';
+        }
+        
+        // 关闭重置密码模态框
+        function closeResetModal() {
+            document.getElementById('reset-modal').style.display = 'none';
+        }
+        
+        // 重置密码
+        async function resetPassword() {
+            const newPassword = document.getElementById('new-password').value;
+            const token = localStorage.admin_token;
+            const resetMessage = document.getElementById('reset-message');
+            
+            if (!newPassword || newPassword.length < 6) {
+                resetMessage.textContent = '密码长度至少6位';
+                resetMessage.className = 'message error';
+                resetMessage.style.display = 'block';
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/api/admin/reset-password?token=${token}&username=${currentUsername}&new_password=${newPassword}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (res.ok) {
+                    resetMessage.textContent = '密码重置成功';
+                    resetMessage.className = 'message success';
+                    resetMessage.style.display = 'block';
+                    // 重新加载用户数据
+                    setTimeout(async () => {
+                        closeResetModal();
+                        await loadUsers();
+                        showMessage('用户密码已重置', 'success');
+                    }, 1500);
+                } else {
+                    const error = await res.json();
+                    resetMessage.textContent = error.detail || '重置失败';
+                    resetMessage.className = 'message error';
+                    resetMessage.style.display = 'block';
+                }
+            } catch (error) {
+                resetMessage.textContent = '网络错误，请稍后重试';
+                resetMessage.className = 'message error';
+                resetMessage.style.display = 'block';
+                console.error('重置密码失败:', error);
+            }
+        }
+        
+        // 显示消息
+        function showMessage(text, type = 'success') {
+            const message = document.getElementById('message');
+            message.textContent = text;
+            message.className = `message ${type}`;
+            message.style.display = 'block';
+            
+            setTimeout(() => {
+                message.style.display = 'none';
+            }, 3000);
+        }
+        
+        // 退出登录
+        function logout() {
+            if (confirm("确定要退出管理员登录吗？")) {
+                localStorage.removeItem('admin_token');
+                location.href = "admin-login.html";
+            }
+        }
+        
+        // 点击模态框外部关闭
+        document.getElementById('reset-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeResetModal();
+            }
+        });
+        
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', checkAdminLogin);
+    </script>
+</body>
+</html>

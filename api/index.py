@@ -166,7 +166,7 @@ def check(token: str):
 
 @app.get("/api/users")
 def get_users():
-    """获取所有用户列表"""
+    """获取所有用户列表（不带密码）"""
     print(f"获取用户列表请求")
     
     conn = get_db_connection()
@@ -184,3 +184,111 @@ def get_users():
     finally:
         cursor.close()
         conn.close()
+
+
+@app.post("/api/admin/login")
+def admin_login(username: str, password: str):
+    """管理员登录"""
+    # 简单的管理员验证（实际生产环境应该更复杂）
+    if username == "admin" and password == "admin123":
+        token = jwt.encode(
+            {"role": "admin", "exp": datetime.utcnow() + timedelta(days=1)},
+            "admin-secret-key",
+            algorithm="HS256"
+        )
+        return {"status": "ok", "token": token}
+    else:
+        raise HTTPException(status_code=401, detail="管理员账号或密码错误")
+
+
+@app.get("/api/admin/check")
+def admin_check(token: str):
+    """验证管理员 token"""
+    try:
+        data = jwt.decode(token, "admin-secret-key", algorithms=["HS256"])
+        if data.get("role") != "admin":
+            raise HTTPException(status_code=401, detail="权限不足")
+        return {"status": "ok"}
+    except:
+        raise HTTPException(status_code=401, detail="管理员 token 无效")
+
+
+@app.get("/api/admin/users")
+def admin_get_users(token: str):
+    """管理员获取所有用户信息（包含密码哈希）"""
+    try:
+        # 验证管理员权限
+        data = jwt.decode(token, "admin-secret-key", algorithms=["HS256"])
+        if data.get("role") != "admin":
+            raise HTTPException(status_code=401, detail="权限不足")
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute("SELECT filename, filedata, uploadtime FROM user_files WHERE filetype = 'user'")
+            users = cursor.fetchall()
+            
+            user_list = []
+            for user in users:
+                user_list.append({
+                    "username": user[0],
+                    "password_hash": user[1],
+                    "created_at": user[2].strftime("%Y-%m-%d %H:%M:%S") if user[2] else None
+                })
+            
+            return {"status": "ok", "users": user_list, "count": len(user_list)}
+        finally:
+            cursor.close()
+            conn.close()
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="管理员 token 已过期")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="管理员 token 无效")
+    except Exception as e:
+        print(f"管理员查询用户失败: {e}")
+        raise HTTPException(status_code=500, detail="查询失败")
+
+
+@app.post("/api/admin/reset-password")
+def admin_reset_password(token: str, username: str, new_password: str):
+    """管理员重置用户密码"""
+    try:
+        # 验证管理员权限
+        data = jwt.decode(token, "admin-secret-key", algorithms=["HS256"])
+        if data.get("role") != "admin":
+            raise HTTPException(status_code=401, detail="权限不足")
+        
+        if not new_password or len(new_password) < 6:
+            raise HTTPException(status_code=400, detail="密码长度至少6位")
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        try:
+            # 检查用户是否存在
+            cursor.execute("SELECT id FROM user_files WHERE filename = %s AND filetype = 'user'", (username,))
+            if not cursor.fetchone():
+                raise HTTPException(status_code=404, detail="用户不存在")
+            
+            # 密码加密
+            hashed_pw = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+            
+            # 更新密码
+            cursor.execute(
+                "UPDATE user_files SET filedata = %s WHERE filename = %s AND filetype = 'user'",
+                (hashed_pw, username)
+            )
+            conn.commit()
+            
+            return {"status": "ok", "msg": "密码重置成功"}
+        finally:
+            cursor.close()
+            conn.close()
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="管理员 token 已过期")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="管理员 token 无效")
+    except Exception as e:
+        print(f"管理员重置密码失败: {e}")
+        raise HTTPException(status_code=500, detail="重置失败")
