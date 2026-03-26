@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import bcrypt
 import jwt
@@ -11,6 +11,158 @@ import string
 from datetime import datetime, timedelta
 
 app = FastAPI()
+
+# 游戏房间管理（内存存储）
+rooms = {}
+
+class GameRoom:
+    def __init__(self, room_id):
+        self.room_id = room_id
+        self.players = {}  # {username: player_id}
+        self.board = [[0 for _ in range(15)] for _ in range(15)]  # 15x15棋盘
+        self.current_player = 1  # 1: 黑棋, 2: 白棋
+        self.game_status = "waiting"  # waiting, playing, finished
+        self.winner = None
+        self.move_history = []
+    
+    def add_player(self, username):
+        if len(self.players) < 2:
+            player_id = 1 if len(self.players) == 0 else 2
+            self.players[username] = player_id
+            return player_id
+        return None
+    
+    def remove_player(self, username):
+        if username in self.players:
+            del self.players[username]
+            return True
+        return False
+    
+    def make_move(self, row, col, player):
+        if self.game_status != "playing":
+            return False, "游戏尚未开始"
+        
+        if self.current_player != player:
+            return False, "不是你的回合"
+        
+        if row < 0 or row >= 15 or col < 0 or col >= 15:
+            return False, "位置超出棋盘范围"
+        
+        if self.board[row][col] != 0:
+            return False, "该位置已有棋子"
+        
+        self.board[row][col] = player
+        self.move_history.append((row, col, player))
+        
+        # 检查胜负
+        if self.check_win(row, col, player):
+            self.game_status = "finished"
+            self.winner = player
+            return True, f"玩家 {player} 获胜！"
+        
+        # 切换玩家
+        self.current_player = 2 if player == 1 else 1
+        return True, "落子成功"
+    
+    def check_win(self, row, col, player):
+        # 检查横向
+        count = 1
+        for c in range(col + 1, 15):
+            if self.board[row][c] == player:
+                count += 1
+            else:
+                break
+        for c in range(col - 1, -1, -1):
+            if self.board[row][c] == player:
+                count += 1
+            else:
+                break
+        if count >= 5:
+            return True
+        
+        # 检查纵向
+        count = 1
+        for r in range(row + 1, 15):
+            if self.board[r][col] == player:
+                count += 1
+            else:
+                break
+        for r in range(row - 1, -1, -1):
+            if self.board[r][col] == player:
+                count += 1
+            else:
+                break
+        if count >= 5:
+            return True
+        
+        # 检查斜向
+        count = 1
+        r, c = row + 1, col + 1
+        while r < 15 and c < 15:
+            if self.board[r][c] == player:
+                count += 1
+                r += 1
+                c += 1
+            else:
+                break
+        r, c = row - 1, col - 1
+        while r >= 0 and c >= 0:
+            if self.board[r][c] == player:
+                count += 1
+                r -= 1
+                c -= 1
+            else:
+                break
+        if count >= 5:
+            return True
+        
+        # 检查反斜向
+        count = 1
+        r, c = row + 1, col - 1
+        while r < 15 and c >= 0:
+            if self.board[r][c] == player:
+                count += 1
+                r += 1
+                c -= 1
+            else:
+                break
+        r, c = row - 1, col + 1
+        while r >= 0 and c < 15:
+            if self.board[r][c] == player:
+                count += 1
+                r -= 1
+                c += 1
+            else:
+                break
+        if count >= 5:
+            return True
+        
+        return False
+    
+    def to_dict(self):
+        return {
+            "room_id": self.room_id,
+            "players": list(self.players.keys()),
+            "board": self.board,
+            "current_player": self.current_player,
+            "game_status": self.game_status,
+            "winner": self.winner
+        }
+
+class JoinRoomRequest(BaseModel):
+    room_id: str
+    username: str
+
+class MoveRequest(BaseModel):
+    room_id: str
+    username: str
+    row: int
+    col: int
+
+class ChatRequest(BaseModel):
+    room_id: str
+    username: str
+    content: str
 
 def get_db_connection():
     try:
@@ -474,122 +626,104 @@ def generate_room_id():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
 
-@app.websocket("/ws/go/{room_id}")
-async def websocket_endpoint(websocket: WebSocket, room_id: str):
-    await websocket.accept()
-    
-    try:
-        # 接收用户信息
-        user_data = await websocket.receive_json()
-        username = user_data.get("username")
-        
-        if not username:
-            await websocket.send_json({"type": "error", "message": "用户名不能为空"})
-            await websocket.close()
-            return
-        
-        # 创建或加入房间
-        if room_id not in game_rooms:
-            game_rooms[room_id] = GameRoom(room_id)
-        
-        room = game_rooms[room_id]
-        
-        # 添加玩家
-        if not room.add_player(username, websocket):
-            await websocket.send_json({"type": "error", "message": "房间已满"})
-            await websocket.close()
-            return
-        
-        # 发送房间信息
-        await websocket.send_json({
-            "type": "joined",
-            "room_id": room_id,
-            "player": 1 if len(room.players) == 1 else 2,
-            "game_state": room.get_game_state()
-        })
-        
-        # 广播玩家加入
-        for player_name, player_ws in room.players.items():
-            if player_ws != websocket:
-                await player_ws.send_json({
-                    "type": "player_joined",
-                    "username": username
-                })
-        
-        # 如果房间满2人，开始游戏
-        if len(room.players) == 2:
-            room.game_status = "playing"
-            for player_ws in room.players.values():
-                await player_ws.send_json({
-                    "type": "game_started",
-                    "game_state": room.get_game_state()
-                })
-        
-        # 游戏主循环
-        while True:
-            data = await websocket.receive_json()
-            message_type = data.get("type")
-            
-            if message_type == "move":
-                row = data.get("row")
-                col = data.get("col")
-                
-                # 确定当前玩家
-                player = 1 if list(room.players.keys())[0] == username else 2
-                
-                success, message = room.make_move(row, col, player)
-                
-                response = {
-                    "type": "move_result",
-                    "success": success,
-                    "message": message,
-                    "game_state": room.get_game_state()
-                }
-                
-                # 广播给所有玩家
-                for player_ws in room.players.values():
-                    await player_ws.send_json(response)
-            
-            elif message_type == "chat":
-                content = data.get("content")
-                # 广播聊天消息
-                for player_ws in room.players.values():
-                    await player_ws.send_json({
-                        "type": "chat",
-                        "username": username,
-                        "content": content
-                    })
-    
-    except WebSocketDisconnect:
-        # 处理玩家断开连接
-        if room_id in game_rooms:
-            room = game_rooms[room_id]
-            if username in room.players:
-                room.remove_player(username)
-                
-                # 广播玩家离开
-                for player_name, player_ws in room.players.items():
-                    await player_ws.send_json({
-                        "type": "player_left",
-                        "username": username
-                    })
-                
-                # 如果房间为空，删除房间
-                if len(room.players) == 0:
-                    del game_rooms[room_id]
-    
-    except Exception as e:
-        print(f"WebSocket错误: {e}")
 
+
+
+# 五子棋游戏HTTP API路由
 
 @app.get("/api/go/rooms")
 def get_rooms():
     """获取所有游戏房间"""
-    rooms_info = []
-    for room_id, room in game_rooms.items():
-        rooms_info.append({
-            "room_id": room_id,
-            "players": list(room.players.keys()),
-            "game_status": room.game_status
-        })
-    return {"status": "ok", "rooms": rooms_info}
+    room_list = []
+    for room_id, room in rooms.items():
+        room_list.append(room.to_dict())
+    return {"status": "ok", "rooms": room_list}
+
+@app.post("/api/go/join")
+def join_room(request: JoinRoomRequest):
+    """加入游戏房间"""
+    room_id = request.room_id
+    username = request.username
+    
+    if not room_id or not username:
+        raise HTTPException(status_code=400, detail="房间ID和用户名不能为空")
+    
+    # 创建房间（如果不存在）
+    if room_id not in rooms:
+        rooms[room_id] = GameRoom(room_id)
+    
+    room = rooms[room_id]
+    
+    # 添加玩家
+    player_id = room.add_player(username)
+    if player_id:
+        # 如果房间满了，开始游戏
+        if len(room.players) == 2:
+            room.game_status = "playing"
+        
+        return {
+            "status": "ok",
+            "player": player_id,
+            "game_state": room.to_dict()
+        }
+    else:
+        raise HTTPException(status_code=400, detail="房间已满")
+
+@app.post("/api/go/move")
+def make_move(request: MoveRequest):
+    """执行落子"""
+    room_id = request.room_id
+    username = request.username
+    row = request.row
+    col = request.col
+    
+    if room_id not in rooms:
+        raise HTTPException(status_code=404, detail="房间不存在")
+    
+    room = rooms[room_id]
+    
+    if username not in room.players:
+        raise HTTPException(status_code=400, detail="玩家未加入房间")
+    
+    player_id = room.players[username]
+    
+    success, message = room.make_move(row, col, player_id)
+    
+    return {
+        "status": "ok",
+        "success": success,
+        "message": message,
+        "game_state": room.to_dict()
+    }
+
+@app.post("/api/go/chat")
+def send_chat(request: ChatRequest):
+    """发送聊天消息"""
+    room_id = request.room_id
+    username = request.username
+    content = request.content
+    
+    if room_id not in rooms:
+        raise HTTPException(status_code=404, detail="房间不存在")
+    
+    room = rooms[room_id]
+    
+    if username not in room.players:
+        raise HTTPException(status_code=400, detail="玩家未加入房间")
+    
+    return {
+        "status": "ok",
+        "username": username,
+        "content": content
+    }
+
+@app.get("/api/go/state/{room_id}")
+def get_game_state(room_id: str):
+    """获取游戏状态"""
+    if room_id not in rooms:
+        raise HTTPException(status_code=404, detail="房间不存在")
+    
+    return {
+        "status": "ok",
+        "game_state": rooms[room_id].to_dict()
+    }

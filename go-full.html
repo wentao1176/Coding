@@ -320,11 +320,11 @@
     </div>
 
     <script>
-        let websocket = null;
         let currentPlayer = null;
         let gameState = null;
         let username = null;
         let roomId = null;
+        let pollInterval = null;
         
         // 获取URL参数
         function getUrlParams() {
@@ -335,8 +335,8 @@
             };
         }
         
-        // 初始化WebSocket连接
-        function initWebSocket() {
+        // 初始化游戏
+        async function initGame() {
             const params = getUrlParams();
             roomId = params.room;
             username = params.username;
@@ -349,75 +349,49 @@
             
             document.getElementById('roomId').textContent = roomId;
             
-            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${wsProtocol}//${window.location.host}/ws/go/${roomId}`;
-            
-            websocket = new WebSocket(wsUrl);
-            
-            websocket.onopen = () => {
-                console.log('WebSocket连接成功');
-                // 发送用户信息
-                websocket.send(JSON.stringify({
-                    username: username
-                }));
-                addChatMessage('系统', `已加入房间 ${roomId}`, 'system');
-            };
-            
-            websocket.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                handleMessage(data);
-            };
-            
-            websocket.onerror = (error) => {
-                console.error('WebSocket错误:', error);
-                addChatMessage('系统', '连接出错，请刷新页面重试', 'system');
-            };
-            
-            websocket.onclose = () => {
-                console.log('WebSocket连接关闭');
-                addChatMessage('系统', '连接已关闭', 'system');
-            };
-        }
-        
-        // 处理WebSocket消息
-        function handleMessage(data) {
-            switch (data.type) {
-                case 'joined':
+            // 加入房间
+            try {
+                const response = await fetch('/api/go/join', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        room_id: roomId,
+                        username: username
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.status === 'ok') {
                     currentPlayer = data.player;
                     updateGameState(data.game_state);
                     addChatMessage('系统', `你是玩家 ${currentPlayer === 1 ? '黑棋' : '白棋'}`, 'system');
-                    break;
                     
-                case 'player_joined':
-                    addChatMessage('系统', `${data.username} 加入了游戏`, 'system');
-                    break;
-                    
-                case 'player_left':
-                    addChatMessage('系统', `${data.username} 离开了游戏`, 'system');
-                    break;
-                    
-                case 'game_started':
-                    updateGameState(data.game_state);
-                    addChatMessage('系统', '游戏开始！', 'system');
-                    break;
-                    
-                case 'move_result':
-                    updateGameState(data.game_state);
-                    if (data.success) {
-                        addChatMessage('系统', data.message, 'system');
-                    } else {
-                        addChatMessage('系统', `错误: ${data.message}`, 'system');
-                    }
-                    break;
-                    
-                case 'chat':
-                    addChatMessage(data.username, data.content, data.username === username ? 'own' : 'other');
-                    break;
-                    
-                case 'error':
-                    addChatMessage('系统', `错误: ${data.message}`, 'system');
-                    break;
+                    // 开始轮询游戏状态
+                    startPolling();
+                } else {
+                    addChatMessage('系统', `错误: ${data.detail || '加入房间失败'}`, 'system');
+                }
+            } catch (error) {
+                console.error('加入房间失败:', error);
+                addChatMessage('系统', '连接出错，请刷新页面重试', 'system');
             }
+        }
+        
+        // 开始轮询游戏状态
+        function startPolling() {
+            pollInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`/api/go/state/${roomId}`);
+                    const data = await response.json();
+                    if (data.status === 'ok') {
+                        updateGameState(data.game_state);
+                    }
+                } catch (error) {
+                    console.error('获取游戏状态失败:', error);
+                }
+            }, 1000); // 每秒轮询一次
         }
         
         // 更新游戏状态
@@ -484,29 +458,71 @@
         }
         
         // 处理棋盘点击
-        function handleCellClick(row, col) {
-            if (!websocket || !gameState || gameState.game_status !== 'playing') {
+        async function handleCellClick(row, col) {
+            if (!gameState || gameState.game_status !== 'playing') {
                 return;
             }
             
-            websocket.send(JSON.stringify({
-                type: 'move',
-                row: row,
-                col: col
-            }));
+            try {
+                const response = await fetch('/api/go/move', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        room_id: roomId,
+                        username: username,
+                        row: row,
+                        col: col
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.status === 'ok') {
+                    if (data.success) {
+                        addChatMessage('系统', data.message, 'system');
+                    } else {
+                        addChatMessage('系统', `错误: ${data.message}`, 'system');
+                    }
+                } else {
+                    addChatMessage('系统', `错误: ${data.detail || '落子失败'}`, 'system');
+                }
+            } catch (error) {
+                console.error('落子失败:', error);
+                addChatMessage('系统', '网络错误，请重试', 'system');
+            }
         }
         
         // 发送聊天消息
-        function sendChat() {
+        async function sendChat() {
             const input = document.getElementById('chatInput');
             const content = input.value.trim();
             
-            if (content && websocket) {
-                websocket.send(JSON.stringify({
-                    type: 'chat',
-                    content: content
-                }));
-                input.value = '';
+            if (content) {
+                try {
+                    const response = await fetch('/api/go/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            room_id: roomId,
+                            username: username,
+                            content: content
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    if (data.status === 'ok') {
+                        addChatMessage(username, content, 'own');
+                        input.value = '';
+                    } else {
+                        addChatMessage('系统', `错误: ${data.detail || '发送消息失败'}`, 'system');
+                    }
+                } catch (error) {
+                    console.error('发送消息失败:', error);
+                    addChatMessage('系统', '网络错误，请重试', 'system');
+                }
             }
         }
         
@@ -535,7 +551,7 @@
         
         // 页面加载时初始化
         window.addEventListener('load', () => {
-            initWebSocket();
+            initGame();
         });
     </script>
 </body>
