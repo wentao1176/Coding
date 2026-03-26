@@ -1,10 +1,13 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 import bcrypt
 import jwt
 import psycopg2
 from psycopg2 import sql
 import os
+import json
+import random
+import string
 from datetime import datetime, timedelta
 
 app = FastAPI()
@@ -334,3 +337,259 @@ def admin_delete_user(token: str, username: str):
     except Exception as e:
         print(f"管理员删除用户失败: {e}")
         raise HTTPException(status_code=500, detail="删除失败")
+
+
+# 五子棋游戏相关代码
+class GameRoom:
+    def __init__(self, room_id):
+        self.room_id = room_id
+        self.players = {}  # {username: websocket}
+        self.board = [[0 for _ in range(15)] for _ in range(15)]  # 15x15棋盘
+        self.current_player = 1  # 1: 黑棋, 2: 白棋
+        self.game_status = "waiting"  # waiting, playing, finished
+        self.winner = None
+        self.move_history = []
+    
+    def add_player(self, username, websocket):
+        if len(self.players) >= 2:
+            return False
+        self.players[username] = websocket
+        return True
+    
+    def remove_player(self, username):
+        if username in self.players:
+            del self.players[username]
+            return True
+        return False
+    
+    def make_move(self, row, col, player):
+        if self.game_status != "playing":
+            return False, "游戏未开始"
+        
+        if player != self.current_player:
+            return False, "不是你的回合"
+        
+        if row< 0 or row >= 15 or col< 0 or col >= 15:
+            return False, "位置超出范围"
+        
+        if self.board[row][col] != 0:
+            return False, "该位置已有棋子"
+        
+        self.board[row][col] = player
+        self.move_history.append({"row": row, "col": col, "player": player})
+        
+        if self.check_win(row, col, player):
+            self.game_status = "finished"
+            self.winner = player
+            return True, "游戏结束，玩家获胜"
+        
+        self.current_player = 2 if player == 1 else 1
+        return True, "落子成功"
+    
+    def check_win(self, row, col, player):
+        # 检查横向
+        count = 1
+        # 向左
+        c = col - 1
+        while c >= 0 and self.board[row][c] == player:
+            count += 1
+            c -= 1
+        # 向右
+        c = col + 1
+        while c< 15 and self.board[row][c] == player:
+            count += 1
+            c += 1
+        if count >= 5:
+            return True
+        
+        # 检查纵向
+        count = 1
+        # 向上
+        r = row - 1
+        while r >= 0 and self.board[r][col] == player:
+            count += 1
+            r -= 1
+        # 向下
+        r = row + 1
+        while r< 15 and self.board[r][col] == player:
+            count += 1
+            r += 1
+        if count >= 5:
+            return True
+        
+        # 检查对角线（左上到右下）
+        count = 1
+        # 左上
+        r, c = row - 1, col - 1
+        while r >= 0 and c >= 0 and self.board[r][c] == player:
+            count += 1
+            r -= 1
+            c -= 1
+        # 右下
+        r, c = row + 1, col + 1
+        while r< 15 and c < 15 and self.board[r][c] == player:
+            count += 1
+            r += 1
+            c += 1
+        if count >= 5:
+            return True
+        
+        # 检查对角线（右上到左下）
+        count = 1
+        # 右上
+        r, c = row - 1, col + 1
+        while r >= 0 and c< 15 and self.board[r][c] == player:
+            count += 1
+            r -= 1
+            c += 1
+        # 左下
+        r, c = row + 1, col - 1
+        while r< 15 and c >= 0 and self.board[r][c] == player:
+            count += 1
+            r += 1
+            c -= 1
+        if count >= 5:
+            return True
+        
+        return False
+    
+    def get_game_state(self):
+        return {
+            "room_id": self.room_id,
+            "players": list(self.players.keys()),
+            "board": self.board,
+            "current_player": self.current_player,
+            "game_status": self.game_status,
+            "winner": self.winner,
+            "move_history": self.move_history
+        }
+
+
+# 全局房间管理
+game_rooms = {}
+
+
+def generate_room_id():
+    """生成随机房间ID"""
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+
+@app.websocket("/ws/go/{room_id}")
+async def websocket_endpoint(websocket: WebSocket, room_id: str):
+    await websocket.accept()
+    
+    try:
+        # 接收用户信息
+        user_data = await websocket.receive_json()
+        username = user_data.get("username")
+        
+        if not username:
+            await websocket.send_json({"type": "error", "message": "用户名不能为空"})
+            await websocket.close()
+            return
+        
+        # 创建或加入房间
+        if room_id not in game_rooms:
+            game_rooms[room_id] = GameRoom(room_id)
+        
+        room = game_rooms[room_id]
+        
+        # 添加玩家
+        if not room.add_player(username, websocket):
+            await websocket.send_json({"type": "error", "message": "房间已满"})
+            await websocket.close()
+            return
+        
+        # 发送房间信息
+        await websocket.send_json({
+            "type": "joined",
+            "room_id": room_id,
+            "player": 1 if len(room.players) == 1 else 2,
+            "game_state": room.get_game_state()
+        })
+        
+        # 广播玩家加入
+        for player_name, player_ws in room.players.items():
+            if player_ws != websocket:
+                await player_ws.send_json({
+                    "type": "player_joined",
+                    "username": username
+                })
+        
+        # 如果房间满2人，开始游戏
+        if len(room.players) == 2:
+            room.game_status = "playing"
+            for player_ws in room.players.values():
+                await player_ws.send_json({
+                    "type": "game_started",
+                    "game_state": room.get_game_state()
+                })
+        
+        # 游戏主循环
+        while True:
+            data = await websocket.receive_json()
+            message_type = data.get("type")
+            
+            if message_type == "move":
+                row = data.get("row")
+                col = data.get("col")
+                
+                # 确定当前玩家
+                player = 1 if list(room.players.keys())[0] == username else 2
+                
+                success, message = room.make_move(row, col, player)
+                
+                response = {
+                    "type": "move_result",
+                    "success": success,
+                    "message": message,
+                    "game_state": room.get_game_state()
+                }
+                
+                # 广播给所有玩家
+                for player_ws in room.players.values():
+                    await player_ws.send_json(response)
+            
+            elif message_type == "chat":
+                content = data.get("content")
+                # 广播聊天消息
+                for player_ws in room.players.values():
+                    await player_ws.send_json({
+                        "type": "chat",
+                        "username": username,
+                        "content": content
+                    })
+    
+    except WebSocketDisconnect:
+        # 处理玩家断开连接
+        if room_id in game_rooms:
+            room = game_rooms[room_id]
+            if username in room.players:
+                room.remove_player(username)
+                
+                # 广播玩家离开
+                for player_name, player_ws in room.players.items():
+                    await player_ws.send_json({
+                        "type": "player_left",
+                        "username": username
+                    })
+                
+                # 如果房间为空，删除房间
+                if len(room.players) == 0:
+                    del game_rooms[room_id]
+    
+    except Exception as e:
+        print(f"WebSocket错误: {e}")
+
+
+@app.get("/api/go/rooms")
+def get_rooms():
+    """获取所有游戏房间"""
+    rooms_info = []
+    for room_id, room in game_rooms.items():
+        rooms_info.append({
+            "room_id": room_id,
+            "players": list(room.players.keys()),
+            "game_status": room.game_status
+        })
+    return {"status": "ok", "rooms": rooms_info}

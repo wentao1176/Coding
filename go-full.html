@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>五子棋游戏 - 全屏模式</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            height: 100vh;
+            width: 100vw;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .title {
+            font-size: 3rem;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 20px;
+            padding: 15px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .info-label {
+            font-weight: 600;
+            color: white;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+        .info-value {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: white;
+        }
+        .room-id {
+            font-family: 'Courier New', monospace;
+        }
+        .player-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .player-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+        }
+        .player-dot.black {
+            background: black;
+        }
+        .player-dot.white {
+            background: white;
+            border: 2px solid black;
+        }
+        .game-board {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            position: relative;
+        }
+        .board-grid {
+            display: grid;
+            grid-template-columns: repeat(15, 35px);
+            grid-template-rows: repeat(15, 35px);
+        }
+        .cell {
+            width: 35px;
+            height: 35px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .cell:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .cell.black {
+            background: black;
+            border-radius: 50%;
+        }
+        .cell.white {
+            background: white;
+            border-radius: 50%;
+            border: 2px solid black;
+        }
+        .cell.current-turn {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .game-status {
+            text-align: center;
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 15px;
+            font-size: 1.3rem;
+            font-weight: 600;
+            display: none;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        .game-status.win {
+            color: #81c784;
+        }
+        .game-status.lose {
+            color: #ef5350;
+        }
+        .game-status.waiting {
+            color: #4fc3f7;
+        }
+        .chat-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 300px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            max-height: 400px;
+        }
+        .chat-header {
+            padding: 15px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            font-weight: 600;
+            text-align: center;
+        }
+        .chat-messages {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            max-height: 250px;
+        }
+        .chat-message {
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            border-radius: 10px;
+            max-width: 80%;
+        }
+        .chat-message.own {
+            background: rgba(102, 126, 234, 0.2);
+            align-self: flex-end;
+            margin-left: auto;
+        }
+        .chat-message.other {
+            background: rgba(0, 0, 0, 0.1);
+            align-self: flex-start;
+        }
+        .chat-message.system {
+            background: rgba(76, 175, 80, 0.1);
+            align-self: center;
+            color: #388e3c;
+            font-style: italic;
+            text-align: center;
+            max-width: 100%;
+        }
+        .chat-input-container {
+            padding: 10px;
+            border-top: 1px solid #e1e5e9;
+            display: flex;
+            gap: 10px;
+        }
+        .chat-input {
+            flex: 1;
+            padding: 10px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+        .chat-send {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 20px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .chat-send:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+        .back-link {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+        }
+        .back-link a {
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: color 0.3s ease;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .back-link a:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        @media (max-width: 768px) {
+            .title {
+                font-size: 2rem;
+            }
+            .board-grid {
+                grid-template-columns: repeat(15, 25px);
+                grid-template-rows: repeat(15, 25px);
+            }
+            .cell {
+                width: 25px;
+                height: 25px;
+            }
+            .game-info {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+            .chat-container {
+                position: fixed;
+                bottom: 0;
+                right: 0;
+                left: 0;
+                width: 100%;
+                max-height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-link">
+        <a href="go.html">返回房间选择</a>
+    </div>
+    
+    <div class="container">
+        <div class="header">
+            <h1 class="title">五子棋游戏</h1>
+        </div>
+        
+        <div class="game-info">
+            <div class="info-item">
+                <div class="info-label">房间ID</div>
+                <div class="info-value room-id" id="roomId">--</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">当前回合</div>
+                <div class="info-value player-indicator">
+                    <div class="player-dot black" id="currentPlayerDot"></div>
+                    <span id="currentPlayer">等待中...</span>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">游戏状态</div>
+                <div class="info-value" id="gameStatus">等待玩家...</div>
+            </div>
+        </div>
+        
+        <div class="game-board">
+            <div class="board-grid" id="gameBoard"></div>
+        </div>
+        
+        <div class="game-status" id="gameStatusDisplay"></div>
+    </div>
+    
+    <div class="chat-container">
+        <div class="chat-header">聊天</div>
+        <div class="chat-messages" id="chatMessages">
+            <div class="chat-message system">欢迎来到五子棋游戏！</div>
+        </div>
+        <div class="chat-input-container">
+            <input type="text" class="chat-input" id="chatInput" placeholder="输入消息...">
+            <button class="chat-send" onclick="sendChat()">发送</button>
+        </div>
+    </div>
+
+    <script>
+        let websocket = null;
+        let currentPlayer = null;
+        let gameState = null;
+        let username = null;
+        let roomId = null;
+        
+        // 获取URL参数
+        function getUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                room: params.get('room'),
+                username: params.get('username')
+            };
+        }
+        
+        // 初始化WebSocket连接
+        function initWebSocket() {
+            const params = getUrlParams();
+            roomId = params.room;
+            username = params.username;
+            
+            if (!roomId || !username) {
+                alert('参数错误');
+                window.location.href = 'go.html';
+                return;
+            }
+            
+            document.getElementById('roomId').textContent = roomId;
+            
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${wsProtocol}//${window.location.host}/ws/go/${roomId}`;
+            
+            websocket = new WebSocket(wsUrl);
+            
+            websocket.onopen = () => {
+                console.log('WebSocket连接成功');
+                // 发送用户信息
+                websocket.send(JSON.stringify({
+                    username: username
+                }));
+                addChatMessage('系统', `已加入房间 ${roomId}`, 'system');
+            };
+            
+            websocket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleMessage(data);
+            };
+            
+            websocket.onerror = (error) => {
+                console.error('WebSocket错误:', error);
+                addChatMessage('系统', '连接出错，请刷新页面重试', 'system');
+            };
+            
+            websocket.onclose = () => {
+                console.log('WebSocket连接关闭');
+                addChatMessage('系统', '连接已关闭', 'system');
+            };
+        }
+        
+        // 处理WebSocket消息
+        function handleMessage(data) {
+            switch (data.type) {
+                case 'joined':
+                    currentPlayer = data.player;
+                    updateGameState(data.game_state);
+                    addChatMessage('系统', `你是玩家 ${currentPlayer === 1 ? '黑棋' : '白棋'}`, 'system');
+                    break;
+                    
+                case 'player_joined':
+                    addChatMessage('系统', `${data.username} 加入了游戏`, 'system');
+                    break;
+                    
+                case 'player_left':
+                    addChatMessage('系统', `${data.username} 离开了游戏`, 'system');
+                    break;
+                    
+                case 'game_started':
+                    updateGameState(data.game_state);
+                    addChatMessage('系统', '游戏开始！', 'system');
+                    break;
+                    
+                case 'move_result':
+                    updateGameState(data.game_state);
+                    if (data.success) {
+                        addChatMessage('系统', data.message, 'system');
+                    } else {
+                        addChatMessage('系统', `错误: ${data.message}`, 'system');
+                    }
+                    break;
+                    
+                case 'chat':
+                    addChatMessage(data.username, data.content, data.username === username ? 'own' : 'other');
+                    break;
+                    
+                case 'error':
+                    addChatMessage('系统', `错误: ${data.message}`, 'system');
+                    break;
+            }
+        }
+        
+        // 更新游戏状态
+        function updateGameState(state) {
+            gameState = state;
+            
+            // 更新游戏状态显示
+            const statusText = {
+                waiting: '等待玩家...',
+                playing: '游戏进行中',
+                finished: '游戏结束'
+            };
+            document.getElementById('gameStatus').textContent = statusText[state.game_status];
+            
+            // 更新当前玩家
+            if (state.game_status === 'playing') {
+                const playerText = state.current_player === 1 ? '黑棋' : '白棋';
+                document.getElementById('currentPlayer').textContent = playerText;
+                document.getElementById('currentPlayerDot').className = `player-dot ${state.current_player === 1 ? 'black' : 'white'}`;
+            } else {
+                document.getElementById('currentPlayer').textContent = '-';
+                document.getElementById('currentPlayerDot').className = 'player-dot';
+            }
+            
+            // 更新棋盘
+            renderBoard(state.board);
+            
+            // 显示游戏结果
+            if (state.game_status === 'finished' && state.winner) {
+                const winnerText = state.winner === currentPlayer ? '你赢了！' : '你输了！';
+                const statusElement = document.getElementById('gameStatusDisplay');
+                statusElement.textContent = winnerText;
+                statusElement.className = `game-status ${state.winner === currentPlayer ? 'win' : 'lose'}`;
+                statusElement.style.display = 'block';
+            }
+        }
+        
+        // 渲染棋盘
+        function renderBoard(board) {
+            const boardElement = document.getElementById('gameBoard');
+            boardElement.innerHTML = '';
+            
+            for (let row = 0; row< 15; row++) {
+                for (let col = 0; col < 15; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    
+                    if (board[row][col] === 1) {
+                        cell.classList.add('black');
+                    } else if (board[row][col] === 2) {
+                        cell.classList.add('white');
+                    }
+                    
+                    // 当前回合的玩家可以点击
+                    if (gameState && gameState.game_status === 'playing' && gameState.current_player === currentPlayer) {
+                        cell.addEventListener('click', () =>handleCellClick(row, col));
+                    }
+                    
+                    boardElement.appendChild(cell);
+                }
+            }
+        }
+        
+        // 处理棋盘点击
+        function handleCellClick(row, col) {
+            if (!websocket || !gameState || gameState.game_status !== 'playing') {
+                return;
+            }
+            
+            websocket.send(JSON.stringify({
+                type: 'move',
+                row: row,
+                col: col
+            }));
+        }
+        
+        // 发送聊天消息
+        function sendChat() {
+            const input = document.getElementById('chatInput');
+            const content = input.value.trim();
+            
+            if (content && websocket) {
+                websocket.send(JSON.stringify({
+                    type: 'chat',
+                    content: content
+                }));
+                input.value = '';
+            }
+        }
+        
+        // 添加聊天消息
+        function addChatMessage(sender, content, type) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const messageElement = document.createElement('div');
+            messageElement.className = `chat-message ${type}`;
+            
+            if (type === 'system') {
+                messageElement.textContent = content;
+            } else {
+                messageElement.innerHTML = `<strong>${sender}:</strong> ${content}`;
+            }
+            
+            messagesContainer.appendChild(messageElement);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        // 聊天输入框回车发送
+        document.getElementById('chatInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendChat();
+            }
+        });
+        
+        // 页面加载时初始化
+        window.addEventListener('load', () => {
+            initWebSocket();
+        });
+    </script>
+</body>
+</html>

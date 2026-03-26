@@ -265,6 +265,11 @@
                 <div class="game-title">贪吃蛇游戏</div>
                 <div class="game-desc">点击进入全屏游戏</div>
             </div>
+            <div class="game-button" onclick="startGoGame()">
+                <span class="game-icon">⚫</span>
+                <div class="game-title">五子棋游戏</div>
+                <div class="game-desc">双人联机对战</div>
+            </div>
         </div>
     </div>
 
@@ -310,6 +315,12 @@
         function startSnakeGame() {
             // 跳转到贪吃蛇游戏页面
             location.href = "snake.html";
+        }
+        
+        // 开始五子棋游戏
+        function startGoGame() {
+            // 跳转到五子棋游戏页面
+            location.href = "go.html";
         }
 
         function logout() {
