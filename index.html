@@ -270,6 +270,11 @@
                 <div class="game-title">五子棋游戏</div>
                 <div class="game-desc">双人联机对战</div>
             </div>
+            <div class="game-button" onclick="startMinecraftGame()">
+                <span class="game-icon">⛏️</span>
+                <div class="game-title">我的世界</div>
+                <div class="game-desc">3D沙盒游戏</div>
+            </div>
         </div>
     </div>
 
@@ -321,6 +326,12 @@
         function startGoGame() {
             // 跳转到五子棋游戏页面
             location.href = "go.html";
+        }
+        
+        // 开始我的世界游戏
+        function startMinecraftGame() {
+            // 跳转到我的世界游戏页面
+            location.href = "minecraft-game/index.html";
         }
 
         function logout() {

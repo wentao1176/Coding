@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>加载测试</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            user-select: none;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body class="bg-black text-white overflow-hidden">
+    <!-- 加载屏幕 -->
+    <div id="loading-screen" class="fixed inset-0 bg-black flex flex-col items-center justify-center z-50">
+        <div class="text-4xl mb-8">加载中...</div>
+        <div class="w-64 h-4 bg-[#3C3C3C] rounded-full overflow-hidden">
+            <div id="loading-bar" class="h-full bg-[#4CAF50] w-0 transition-all duration-300"></div>
+        </div>
+        <div id="loading-text" class="mt-4 text-sm text-gray-400">正在初始化游戏...</div>
+    </div>
+    
+    <!-- 主菜单 -->
+    <div id="main-menu" class="fixed inset-0 bg-[url('https://p11-doubao-search-sign.byteimg.com/labis/00e2c535d3b6fc1b401ef24b0c404b7f~tplv-be4g95zd3a-image.jpeg?lk3s=feb11e32&amp;x-expires=1790129620&amp;x-signature=hj4TDzGvldPST6h2LaNq93PmnSE%3D')] bg-cover bg-center flex flex-col items-center justify-center z-40 hidden">
+        <div class="text-6xl text-white mb-12">Minecraft</div>
+        <div class="flex flex-col gap-4 w-64">
+            <button class="bg-[#3C3C3C] text-white py-2 px-6 rounded-md border-2 border-[#555]">单人游戏</button>
+            <button class="bg-[#3C3C3C] text-white py-2 px-6 rounded-md border-2 border-[#555]">多人游戏</button>
+            <button class="bg-[#3C3C3C] text-white py-2 px-6 rounded-md border-2 border-[#555]">选项</button>
+            <button class="bg-[#3C3C3C] text-white py-2 px-6 rounded-md border-2 border-[#555]">退出游戏</button>
+        </div>
+    </div>
+    
+    <script>
+        console.log('测试加载过程...');
+        
+        function init() {
+            console.log('开始初始化游戏...');
+            
+            // 模拟加载过程
+            let progress = 0;
+            const loadingBar = document.getElementById('loading-bar');
+            const loadingText = document.getElementById('loading-text');
+            
+            console.log('开始模拟加载过程...');
+            console.log('loadingBar:', loadingBar);
+            console.log('loadingText:', loadingText);
+            
+            const loadingInterval = setInterval(() => {
+                progress += 5;
+                loadingBar.style.width = `${progress}%`;
+                
+                console.log(`加载进度: ${progress}%`);
+                
+                if (progress === 20) {
+                    loadingText.textContent = '加载游戏资源...';
+                } else if (progress === 40) {
+                    loadingText.textContent = '初始化3D引擎...';
+                } else if (progress === 60) {
+                    loadingText.textContent = '生成世界...';
+                } else if (progress === 80) {
+                    loadingText.textContent = '准备游戏...';
+                }
+                
+                if (progress >= 100) {
+                    clearInterval(loadingInterval);
+                    console.log('加载完成，显示主菜单');
+                    setTimeout(() => {
+                        console.log('隐藏加载屏幕');
+                        document.getElementById('loading-screen').classList.add('hidden');
+                        console.log('显示主菜单');
+                        document.getElementById('main-menu').classList.remove('hidden');
+                    }, 500);
+                }
+            }, 100);
+        }
+        
+        // 页面加载完成后初始化
+        console.log('等待页面加载完成...');
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

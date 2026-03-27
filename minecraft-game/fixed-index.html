@@ -1,0 +1,1800 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft 网页版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- Three.js 库 -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/PointerLockControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4CAF50',
+                        secondary: '#FFC107',
+                        dark: '#212121',
+                        light: '#F5F5F5',
+                        minecraft: {
+                            grass: '#71A95A',
+                            dirt: '#8B4513',
+                            stone: '#A9A9A9',
+                            wood: '#D2691E',
+                            water: '#4682B4'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Minecraft', 'Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .minecraft-font {
+                font-family: 'Minecraft', sans-serif;
+                letter-spacing: 1px;
+                text-shadow: 2px 2px 0px #000000;
+            }
+            
+            .menu-button {
+                @apply bg-[#3C3C3C] text-white py-2 px-6 rounded-md border-2 border-[#555] 
+                       hover:bg-[#4C4C4C] active:bg-[#2C2C2C] active:translate-y-1 
+                       transition-all duration-100 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.8)];
+            }
+            
+            .menu-button:focus {
+                @apply outline-none ring-2 ring-[#555] ring-offset-2 ring-offset-black;
+            }
+            
+            .inventory-slot {
+                @apply w-10 h-10 bg-[#3C3C3C] border-2 border-[#555] rounded-sm 
+                       flex items-center justify-center cursor-pointer hover:border-[#777] 
+                       transition-colors duration-100;
+            }
+            
+            .inventory-slot.selected {
+                @apply border-[#FFC107];
+            }
+            
+            .hotbar-slot {
+                @apply w-12 h-12 bg-[#3C3C3C]/70 border-2 border-[#555] rounded-sm 
+                       flex items-center justify-center cursor-pointer hover:border-[#777] 
+                       transition-colors duration-100;
+            }
+            
+            .hotbar-slot.selected {
+                @apply border-[#FFC107];
+            }
+            
+            .crosshair {
+                @apply w-6 h-6 border-2 border-white/70 pointer-events-none;
+            }
+            
+            .tooltip {
+                @apply absolute bg-black/80 text-white text-xs px-2 py-1 rounded-sm 
+                       whitespace-nowrap z-50 pointer-events-none;
+            }
+        }
+        
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #2C2C2C;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 6px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #777;
+        }
+        
+        /* 禁用文本选择 */
+        body {
+            user-select: none;
+            overflow: hidden;
+        }
+        
+        /* 加载字体 */
+        @font-face {
+            font-family: 'Minecraft';
+            src: url('https://cdn.jsdelivr.net/gh/IdreesInc/MCFont/resources/fonts/minecraft.woff') format('woff');
+            font-weight: normal;
+            font-style: normal;
+        }
+    </style>
+</head>
+<body class="bg-black text-white overflow-hidden">
+    <!-- 加载屏幕 -->
+    <div id="loading-screen" class="fixed inset-0 bg-black flex flex-col items-center justify-center z-50">
+        <div class="text-4xl minecraft-font mb-8">加载中...</div>
+        <div class="w-64 h-4 bg-[#3C3C3C] rounded-full overflow-hidden">
+            <div id="loading-bar" class="h-full bg-[#4CAF50] w-0 transition-all duration-300"></div>
+        </div>
+        <div id="loading-text" class="mt-4 text-sm text-gray-400">正在初始化游戏...</div>
+        <button id="skip-loading" class="mt-8 bg-[#3C3C3C] text-white py-2 px-6 rounded-md border-2 border-[#555] hover:bg-[#4C4C4C] transition-colors duration-100">
+            跳过加载
+        </button>
+    </div>
+    
+    <!-- 主菜单 -->
+    <div id="main-menu" class="fixed inset-0 bg-[url('https://p11-doubao-search-sign.byteimg.com/labis/00e2c535d3b6fc1b401ef24b0c404b7f~tplv-be4g95zd3a-image.jpeg?lk3s=feb11e32&amp;x-expires=1790129620&amp;x-signature=hj4TDzGvldPST6h2LaNq93PmnSE%3D')] bg-cover bg-center flex flex-col items-center justify-center z-40 hidden">
+        <div class="text-6xl minecraft-font text-white mb-12 drop-shadow-[0_0_10px_rgba(0,0,0,0.8)]">Minecraft</div>
+        
+        <div class="flex flex-col gap-4 w-64">
+            <button id="play-button" class="menu-button minecraft-font text-xl">单人游戏</button>
+            <button id="multiplayer-button" class="menu-button minecraft-font text-xl">多人游戏</button>
+            <button id="options-button" class="menu-button minecraft-font text-xl">选项</button>
+            <button id="exit-button" class="menu-button minecraft-font text-xl">退出游戏</button>
+        </div>
+        
+        <div class="absolute bottom-4 right-4 text-sm text-gray-400">Minecraft 网页版 v1.0</div>
+    </div>
+    
+    <!-- 单人游戏菜单 -->
+    <div id="singleplayer-menu" class="fixed inset-0 bg-black/80 flex flex-col items-center justify-center z-40 hidden">
+        <div class="text-4xl minecraft-font text-white mb-8">单人游戏</div>
+        
+        <div class="flex flex-col gap-4 w-80">
+            <button id="create-world-button" class="menu-button minecraft-font text-xl">创建新的世界</button>
+            
+            <div class="mt-4 mb-2 text-center text-sm text-gray-400">已保存的世界</div>
+            <div id="saved-worlds" class="bg-[#2C2C2C]/80 border-2 border-[#555] rounded-md p-2 max-h-64 overflow-y-auto">
+                <div class="text-center text-gray-500 py-4">没有已保存的世界</div>
+            </div>
+            
+            <button id="back-from-singleplayer-button" class="menu-button minecraft-font text-xl mt-4">返回主菜单</button>
+        </div>
+    </div>
+    
+    <!-- 创建世界菜单 -->
+    <div id="create-world-menu" class="fixed inset-0 bg-black/80 flex flex-col items-center justify-center z-40 hidden">
+        <div class="text-4xl minecraft-font text-white mb-8">创建新的世界</div>
+        
+        <div class="flex flex-col gap-4 w-80">
+            <div class="flex flex-col gap-2">
+                <label for="world-name" class="text-sm text-gray-400">世界名称</label>
+                <input type="text" id="world-name" class="bg-[#3C3C3C] text-white p-2 rounded-md border-2 border-[#555] focus:outline-none focus:border-[#777]" placeholder="我的世界" value="新的世界">
+            </div>
+            
+            <div class="flex flex-col gap-2">
+                <label for="seed" class="text-sm text-gray-400">种子 (可选)</label>
+                <input type="text" id="seed" class="bg-[#3C3C3C] text-white p-2 rounded-md border-2 border-[#555] focus:outline-none focus:border-[#777]" placeholder="留空以随机生成">
+            </div>
+            
+            <div class="flex flex-col gap-2">
+                <label class="text-sm text-gray-400">游戏模式</label>
+                <div class="flex gap-4">
+                    <button id="survival-mode" class="menu-button minecraft-font flex-1 selected">生存</button>
+                    <button id="creative-mode" class="menu-button minecraft-font flex-1">创造</button>
+                </div>
+            </div>
+            
+            <div class="flex gap-4 mt-4">
+                <button id="create-world-confirm" class="menu-button minecraft-font flex-1">创建新的世界</button>
+                <button id="back-from-create-world-button" class="menu-button minecraft-font flex-1">取消</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 选项菜单 -->
+    <div id="options-menu" class="fixed inset-0 bg-black/80 flex flex-col items-center justify-center z-40 hidden">
+        <div class="text-4xl minecraft-font text-white mb-8">选项</div>
+        
+        <div class="flex flex-col gap-6 w-80">
+            <div class="flex flex-col gap-2">
+                <label for="render-distance" class="text-sm text-gray-400">渲染距离: <span id="render-distance-value">8</span></label>
+                <input type="range" id="render-distance" min="2" max="16" value="8" class="w-full">
+            </div>
+            
+            <div class="flex flex-col gap-2">
+                <label for="graphics-quality" class="text-sm text-gray-400">图形质量</label>
+                <select id="graphics-quality" class="bg-[#3C3C3C] text-white p-2 rounded-md border-2 border-[#555] focus:outline-none focus:border-[#777]">
+                    <option value="high">高品质</option>
+                    <option value="medium">中品质</option>
+                    <option value="low">低品质</option>
+                </select>
+            </div>
+            
+            <div class="flex items-center justify-between">
+                <span class="text-sm">音效</span>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="sound-enabled" class="sr-only peer" checked="">
+                    <div class="w-11 h-6 bg-[#555] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#4CAF50]"></div>
+                </label>
+            </div>
+            
+            <div class="flex items-center justify-between">
+                <span class="text-sm">音乐</span>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="music-enabled" class="sr-only peer" checked="">
+                    <div class="w-11 h-6 bg-[#555] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#4CAF50]"></div>
+                </label>
+            </div>
+            
+            <button id="back-from-options-button" class="menu-button minecraft-font text-xl mt-4">返回主菜单</button>
+        </div>
+    </div>
+    
+    <!-- 游戏界面 -->
+    <div id="game-container" class="fixed inset-0 bg-black flex flex-col items-center justify-center z-30 hidden">
+        <!-- 3D场景容器 -->
+        <div id="scene-container" class="absolute inset-0"></div>
+        
+        <!-- 准星 -->
+        <div class="crosshair absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10"></div>
+        
+        <!-- 生命值和饥饿值 -->
+        <div class="absolute bottom-20 left-1/2 transform -translate-x-1/2 flex items-center gap-4 z-10">
+            <div class="flex gap-1">
+                <div class="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white">❤</div>
+                <div class="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white">❤</div>
+                <div class="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white">❤</div>
+                <div class="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white">❤</div>
+                <div class="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white">❤</div>
+                <div class="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white">❤</div>
+                <div class="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white">❤</div>
+                <div class="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white">❤</div>
+                <div class="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white">❤</div>
+                <div class="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white">❤</div>
+            </div>
+            <div class="flex gap-1">
+                <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center text-white">🍖</div>
+                <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center text-white">🍖</div>
+                <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center text-white">🍖</div>
+                <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center text-white">🍖</div>
+                <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center text-white">🍖</div>
+                <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center text-white">🍖</div>
+                <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center text-white">🍖</div>
+                <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center text-white">🍖</div>
+                <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center text-white">🍖</div>
+                <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center text-white">🍖</div>
+            </div>
+        </div>
+        
+        <!-- 快捷栏 -->
+        <div class="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex gap-2 z-10">
+            <div class="hotbar-slot selected" data-slot="0">
+                <img src="https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/ace2a861712e4297a45b887070222b2f~tplv-a9rns2rl98-image.image?lk3s=8e244e95&amp;rcl=20260327101309F9B1F807183A100BACA8&amp;rrcfp=f06b921b&amp;x-expires=1777169636&amp;x-signature=6DQXO1Ut0v2gqj8%2BlzgwF4ySrlc%3D" class="w-8 h-8 object-cover">
+            </div>
+            <div class="hotbar-slot" data-slot="1">
+                <img src="https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/c80230dfa82d49a8bd79e882e304c51c~tplv-a9rns2rl98-image.image?lk3s=8e244e95&amp;rcl=20260327101309F9B1F807183A100BACA8&amp;rrcfp=f06b921b&amp;x-expires=1777169638&amp;x-signature=u94bDrcz%2BWIPk5UFqQYbKb7u%2BUY%3D" class="w-8 h-8 object-cover">
+            </div>
+            <div class="hotbar-slot" data-slot="2">
+                <img src="https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/0c6eff52dc33460a9e82623cb7bbf4ff~tplv-a9rns2rl98-image.image?lk3s=8e244e95&amp;rcl=20260327101309F9B1F807183A100BACA8&amp;rrcfp=f06b921b&amp;x-expires=1777169638&amp;x-signature=wSaFw6XkgspoAvfGN6BRdEvdlv4%3D" class="w-8 h-8 object-cover">
+            </div>
+            <div class="hotbar-slot" data-slot="3">
+                <i class="fa fa-tree text-green-700 text-xl"></i>
+            </div>
+            <div class="hotbar-slot" data-slot="4">
+                <i class="fa fa-fire text-orange-500 text-xl"></i>
+            </div>
+            <div class="hotbar-slot" data-slot="5">
+                <i class="fa fa-diamond text-blue-400 text-xl"></i>
+            </div>
+            <div class="hotbar-slot" data-slot="6">
+                <i class="fa fa-bolt text-yellow-400 text-xl"></i>
+            </div>
+            <div class="hotbar-slot" data-slot="7">
+                <i class="fa fa-cutlery text-gray-300 text-xl"></i>
+            </div>
+            <div class="hotbar-slot" data-slot="8">
+                <i class="fa fa-axe text-gray-600 text-xl"></i>
+            </div>
+        </div>
+        
+        <!-- 物品栏按钮 -->
+        <button id="inventory-button" class="absolute bottom-8 right-8 w-12 h-12 bg-[#3C3C3C]/70 border-2 border-[#555] rounded-sm flex items-center justify-center z-10 hover:bg-[#4C4C4C]/70 transition-colors duration-100">
+            <i class="fa fa-suitcase text-white text-xl"></i>
+        </button>
+        
+        <!-- ESC菜单按钮 -->
+        <button id="escape-button" class="absolute top-8 right-8 w-12 h-12 bg-[#3C3C3C]/70 border-2 border-[#555] rounded-sm flex items-center justify-center z-10 hover:bg-[#4C4C4C]/70 transition-colors duration-100">
+            <i class="fa fa-bars text-white text-xl"></i>
+        </button>
+        
+        <!-- 调试信息 -->
+        <div id="debug-info" class="absolute top-8 left-8 text-xs text-gray-400 font-mono z-10 pointer-events-none hidden">
+            X: 0.0, Y: 64.0, Z: 0.0<br>
+            FPS: 60<br>
+            区块: 0,0<br>
+            生物: 0
+        </div>
+    </div>
+    
+    <!-- 物品栏 -->
+    <div id="inventory" class="fixed inset-0 bg-black/50 flex items-center justify-center z-20 hidden">
+        <div class="bg-[#2C2C2C]/90 border-2 border-[#555] rounded-md p-6 w-96">
+            <div class="text-2xl minecraft-font text-white mb-4">物品栏</div>
+            
+            <!-- 物品网格 -->
+            <div class="grid grid-cols-9 gap-2 mb-4">
+                <!-- 装备栏 -->
+                <div class="col-span-9 grid grid-cols-4 gap-2 mb-2">
+                    <div class="inventory-slot" data-slot="armor-helmet">
+                        <i class="fa fa-shield text-gray-400"></i>
+                    </div>
+                    <div class="inventory-slot" data-slot="armor-chest">
+                        <i class="fa fa-shield text-gray-400"></i>
+                    </div>
+                    <div class="inventory-slot" data-slot="armor-legs">
+                        <i class="fa fa-shield text-gray-400"></i>
+                    </div>
+                    <div class="inventory-slot" data-slot="armor-feet">
+                        <i class="fa fa-shield text-gray-400"></i>
+                    </div>
+                </div>
+                
+                <!-- 物品栏 -->
+                <div class="col-span-9 grid grid-cols-9 gap-2">
+                    <div class="inventory-slot" data-slot="9">
+                        <img src="https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/ace2a861712e4297a45b887070222b2f~tplv-a9rns2rl98-image.image?lk3s=8e244e95&amp;rcl=20260327101309F9B1F807183A100BACA8&amp;rrcfp=f06b921b&amp;x-expires=1777169636&amp;x-signature=6DQXO1Ut0v2gqj8%2BlzgwF4ySrlc%3D" class="w-6 h-6 object-cover">
+                    </div>
+                    <div class="inventory-slot" data-slot="10">
+                        <img src="https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/c80230dfa82d49a8bd79e882e304c51c~tplv-a9rns2rl98-image.image?lk3s=8e244e95&amp;rcl=20260327101309F9B1F807183A100BACA8&amp;rrcfp=f06b921b&amp;x-expires=1777169638&amp;x-signature=u94bDrcz%2BWIPk5UFqQYbKb7u%2BUY%3D" class="w-6 h-6 object-cover">
+                    </div>
+                    <div class="inventory-slot" data-slot="11">
+                        <img src="https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/0c6eff52dc33460a9e82623cb7bbf4ff~tplv-a9rns2rl98-image.image?lk3s=8e244e95&amp;rcl=20260327101309F9B1F807183A100BACA8&amp;rrcfp=f06b921b&amp;x-expires=1777169638&amp;x-signature=wSaFw6XkgspoAvfGN6BRdEvdlv4%3D" class="w-6 h-6 object-cover">
+                    </div>
+                    <div class="inventory-slot" data-slot="12">
+                        <i class="fa fa-tree text-green-700"></i>
+                    </div>
+                    <div class="inventory-slot" data-slot="13">
+                        <i class="fa fa-fire text-orange-500"></i>
+                    </div>
+                    <div class="inventory-slot" data-slot="14">
+                        <i class="fa fa-diamond text-blue-400"></i>
+                    </div>
+                    <div class="inventory-slot" data-slot="15">
+                        <i class="fa fa-bolt text-yellow-400"></i>
+                    </div>
+                    <div class="inventory-slot" data-slot="16">
+                        <i class="fa fa-cutlery text-gray-300"></i>
+                    </div>
+                    <div class="inventory-slot" data-slot="17">
+                        <i class="fa fa-axe text-gray-600"></i>
+                    </div>
+                    
+                    <!-- 快捷栏 (镜像) -->
+                    <div class="inventory-slot selected" data-slot="0">
+                        <img src="https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/ace2a861712e4297a45b887070222b2f~tplv-a9rns2rl98-image.image?lk3s=8e244e95&amp;rcl=20260327101309F9B1F807183A100BACA8&amp;rrcfp=f06b921b&amp;x-expires=1777169636&amp;x-signature=6DQXO1Ut0v2gqj8%2BlzgwF4ySrlc%3D" class="w-6 h-6 object-cover">
+                    </div>
+                    <div class="inventory-slot" data-slot="1">
+                        <img src="https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/c80230dfa82d49a8bd79e882e304c51c~tplv-a9rns2rl98-image.image?lk3s=8e244e95&amp;rcl=20260327101309F9B1F807183A100BACA8&amp;rrcfp=f06b921b&amp;x-expires=1777169638&amp;x-signature=u94bDrcz%2BWIPk5UFqQYbKb7u%2BUY%3D" class="w-6 h-6 object-cover">
+                    </div>
+                    <div class="inventory-slot" data-slot="2">
+                        <img src="https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/0c6eff52dc33460a9e82623cb7bbf4ff~tplv-a9rns2rl98-image.image?lk3s=8e244e95&amp;rcl=20260327101309F9B1F807183A100BACA8&amp;rrcfp=f06b921b&amp;x-expires=1777169638&amp;x-signature=wSaFw6XkgspoAvfGN6BRdEvdlv4%3D" class="w-6 h-6 object-cover">
+                    </div>
+                    <div class="inventory-slot" data-slot="3">
+                        <i class="fa fa-tree text-green-700"></i>
+                    </div>
+                    <div class="inventory-slot" data-slot="4">
+                        <i class="fa fa-fire text-orange-500"></i>
+                    </div>
+                    <div class="inventory-slot" data-slot="5">
+                        <i class="fa fa-diamond text-blue-400"></i>
+                    </div>
+                    <div class="inventory-slot" data-slot="6">
+                        <i class="fa fa-bolt text-yellow-400"></i>
+                    </div>
+                    <div class="inventory-slot" data-slot="7">
+                        <i class="fa fa-cutlery text-gray-300"></i>
+                    </div>
+                    <div class="inventory-slot" data-slot="8">
+                        <i class="fa fa-axe text-gray-600"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex justify-end">
+                <button id="close-inventory-button" class="menu-button minecraft-font">关闭物品栏</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ESC菜单 -->
+    <div id="escape-menu" class="fixed inset-0 bg-black/50 flex items-center justify-center z-20 hidden">
+        <div class="bg-[#2C2C2C]/90 border-2 border-[#555] rounded-md p-6 w-80">
+            <div class="text-2xl minecraft-font text-white mb-4">游戏菜单</div>
+            
+            <div class="flex flex-col gap-4">
+                <button id="continue-button" class="menu-button minecraft-font text-xl">继续游戏</button>
+                <button id="game-options-button" class="menu-button minecraft-font text-xl">选项</button>
+                <button id="save-quit-button" class="menu-button minecraft-font text-xl">保存并退出</button>
+                <button id="quit-button" class="menu-button minecraft-font text-xl">退出游戏</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 死亡屏幕 -->
+    <div id="death-screen" class="fixed inset-0 bg-red-900/70 flex flex-col items-center justify-center z-20 hidden">
+        <div class="text-6xl minecraft-font text-white mb-8">你死了!</div>
+        <div class="text-xl minecraft-font text-white mb-12">你被苦力怕炸死了</div>
+        
+        <div class="flex gap-4">
+            <button id="respawn-button" class="menu-button minecraft-font text-xl">重生</button>
+            <button id="title-screen-button" class="menu-button minecraft-font text-xl">返回标题画面</button>
+        </div>
+    </div>
+    
+    <!-- 提示信息 -->
+    <div id="tooltip" class="tooltip hidden"></div>
+    
+    <script>
+        console.log('Minecraft 网页版加载中...');
+        
+        // 全局变量
+        let scene, camera, renderer, controls;
+        let world, player, allEntities = [];
+        let clock = new THREE.Clock();
+        let gameState = 'loading'; // loading, menu, game, inventory, escape, dead
+        let selectedBlockType = 'grass';
+        let selectedSlot = 0;
+        let debugMode = false;
+        let lastFrameTime = 0;
+        let fps = 60;
+        
+        // 复用的几何体和材质
+        let boxGeometry;
+        let blockMaterials = {};
+        
+        // 方块类型定义
+        const blockTypes = {
+            'grass': {
+                name: '草方块',
+                texture: 'https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/ace2a861712e4297a45b887070222b2f~tplv-a9rns2rl98-image.image?lk3s=8e244e95&rcl=20260327101309F9B1F807183A100BACA8&rrcfp=f06b921b&x-expires=1777169636&x-signature=6DQXO1Ut0v2gqj8%2BlzgwF4ySrlc%3D',
+                hardness: 0.6,
+                tool: 'shovel'
+            },
+            'dirt': {
+                name: '泥土',
+                texture: 'https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/c80230dfa82d49a8bd79e882e304c51c~tplv-a9rns2rl98-image.image?lk3s=8e244e95&rcl=20260327101309F9B1F807183A100BACA8&rrcfp=f06b921b&x-expires=1777169638&x-signature=u94bDrcz%2BWIPk5UFqQYbKb7u%2BUY%3D',
+                hardness: 0.5,
+                tool: 'shovel'
+            },
+            'stone': {
+                name: '石头',
+                texture: 'https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/0c6eff52dc33460a9e82623cb7bbf4ff~tplv-a9rns2rl98-image.image?lk3s=8e244e95&rcl=20260327101309F9B1F807183A100BACA8&rrcfp=f06b921b&x-expires=1777169638&x-signature=wSaFw6XkgspoAvfGN6BRdEvdlv4%3D',
+                hardness: 1.5,
+                tool: 'pickaxe'
+            },
+            'wood': {
+                name: '木头',
+                texture: 'wood.png',
+                hardness: 2.0,
+                tool: 'axe'
+            },
+            'leaves': {
+                name: '树叶',
+                texture: 'leaves.png',
+                hardness: 0.2,
+                tool: 'shears'
+            },
+            'sand': {
+                name: '沙子',
+                texture: 'sand.png',
+                hardness: 0.5,
+                tool: 'shovel'
+            },
+            'water': {
+                name: '水',
+                texture: 'water.png',
+                hardness: -1,
+                tool: null
+            },
+            'bedrock': {
+                name: '基岩',
+                texture: 'bedrock.png',
+                hardness: -1,
+                tool: null
+            }
+        };
+        
+        // 物品定义
+        const items = {
+            'wooden_pickaxe': {
+                name: '木镐',
+                type: 'tool',
+                toolType: 'pickaxe',
+                durability: 59,
+                miningSpeed: 2
+            },
+            'stone_pickaxe': {
+                name: '石镐',
+                type: 'tool',
+                toolType: 'pickaxe',
+                durability: 131,
+                miningSpeed: 4
+            },
+            'iron_pickaxe': {
+                name: '铁镐',
+                type: 'tool',
+                toolType: 'pickaxe',
+                durability: 250,
+                miningSpeed: 6
+            },
+            'golden_pickaxe': {
+                name: '金镐',
+                type: 'tool',
+                toolType: 'pickaxe',
+                durability: 32,
+                miningSpeed: 12
+            },
+            'diamond_pickaxe': {
+                name: '钻石镐',
+                type: 'tool',
+                toolType: 'pickaxe',
+                durability: 1561,
+                miningSpeed: 8
+            },
+            'wooden_axe': {
+                name: '木斧',
+                type: 'tool',
+                toolType: 'axe',
+                durability: 59,
+                miningSpeed: 2
+            },
+            'stone_axe': {
+                name: '石斧',
+                type: 'tool',
+                toolType: 'axe',
+                durability: 131,
+                miningSpeed: 4
+            },
+            'iron_axe': {
+                name: '铁斧',
+                type: 'tool',
+                toolType: 'axe',
+                durability: 250,
+                miningSpeed: 6
+            },
+            'golden_axe': {
+                name: '金斧',
+                type: 'tool',
+                toolType: 'axe',
+                durability: 32,
+                miningSpeed: 12
+            },
+            'diamond_axe': {
+                name: '钻石斧',
+                type: 'tool',
+                toolType: 'axe',
+                durability: 1561,
+                miningSpeed: 8
+            },
+            'wooden_shovel': {
+                name: '木铲',
+                type: 'tool',
+                toolType: 'shovel',
+                durability: 59,
+                miningSpeed: 2
+            },
+            'stone_shovel': {
+                name: '石铲',
+                type: 'tool',
+                toolType: 'shovel',
+                durability: 131,
+                miningSpeed: 4
+            },
+            'iron_shovel': {
+                name: '铁铲',
+                type: 'tool',
+                toolType: 'shovel',
+                durability: 250,
+                miningSpeed: 6
+            },
+            'golden_shovel': {
+                name: '金铲',
+                type: 'tool',
+                toolType: 'shovel',
+                durability: 32,
+                miningSpeed: 12
+            },
+            'diamond_shovel': {
+                name: '钻石铲',
+                type: 'tool',
+                toolType: 'shovel',
+                durability: 1561,
+                miningSpeed: 8
+            },
+            'bread': {
+                name: '面包',
+                type: 'food',
+                hunger: 5,
+                saturation: 6
+            },
+            'apple': {
+                name: '苹果',
+                type: 'food',
+                hunger: 4,
+                saturation: 2.4
+            },
+            'cooked_beef': {
+                name: '熟牛肉',
+                type: 'food',
+                hunger: 8,
+                saturation: 12.8
+            }
+        };
+        
+        // 生物定义
+        const entityTypes = {
+            'creeper': {
+                name: '苦力怕',
+                type: 'hostile',
+                health: 20,
+                speed: 1.2,
+                size: {x: 0.6, y: 1.7, z: 0.6},
+                texture: 'creeper.png',
+                sounds: {
+                    idle: 'creeper_idle.mp3',
+                    hurt: 'creeper_hurt.mp3',
+                    death: 'creeper_death.mp3',
+                    explosion: 'creeper_explosion.mp3'
+                }
+            },
+            'zombie': {
+                name: '僵尸',
+                type: 'hostile',
+                health: 20,
+                speed: 1,
+                size: {x: 0.6, y: 1.95, z: 0.6},
+                texture: 'zombie.png',
+                sounds: {
+                    idle: 'zombie_idle.mp3',
+                    hurt: 'zombie_hurt.mp3',
+                    death: 'zombie_death.mp3'
+                }
+            },
+            'skeleton': {
+                name: '骷髅',
+                type: 'hostile',
+                health: 20,
+                speed: 1,
+                size: {x: 0.6, y: 1.99, z: 0.6},
+                texture: 'skeleton.png',
+                sounds: {
+                    idle: 'skeleton_idle.mp3',
+                    hurt: 'skeleton_hurt.mp3',
+                    death: 'skeleton_death.mp3',
+                    shoot: 'skeleton_shoot.mp3'
+                }
+            },
+            'spider': {
+                name: '蜘蛛',
+                type: 'hostile',
+                health: 16,
+                speed: 1.3,
+                size: {x: 1.4, y: 0.9, z: 1.4},
+                texture: 'spider.png',
+                sounds: {
+                    idle: 'spider_idle.mp3',
+                    hurt: 'spider_hurt.mp3',
+                    death: 'spider_death.mp3'
+                }
+            },
+            'pig': {
+                name: '猪',
+                type: 'passive',
+                health: 10,
+                speed: 1,
+                size: {x: 0.9, y: 0.9, z: 0.9},
+                texture: 'pig.png',
+                sounds: {
+                    idle: 'pig_idle.mp3',
+                    hurt: 'pig_hurt.mp3',
+                    death: 'pig_death.mp3'
+                }
+            },
+            'sheep': {
+                name: '羊',
+                type: 'passive',
+                health: 8,
+                speed: 1,
+                size: {x: 0.9, y: 1.3, z: 0.9},
+                texture: 'sheep.png',
+                sounds: {
+                    idle: 'sheep_idle.mp3',
+                    hurt: 'sheep_hurt.mp3',
+                    death: 'sheep_death.mp3'
+                }
+            },
+            'cow': {
+                name: '牛',
+                type: 'passive',
+                health: 10,
+                speed: 1,
+                size: {x: 0.9, y: 1.4, z: 0.9},
+                texture: 'cow.png',
+                sounds: {
+                    idle: 'cow_idle.mp3',
+                    hurt: 'cow_hurt.mp3',
+                    death: 'cow_death.mp3'
+                }
+            },
+            'chicken': {
+                name: '鸡',
+                type: 'passive',
+                health: 4,
+                speed: 0.9,
+                size: {x: 0.4, y: 0.7, z: 0.4},
+                texture: 'chicken.png',
+                sounds: {
+                    idle: 'chicken_idle.mp3',
+                    hurt: 'chicken_hurt.mp3',
+                    death: 'chicken_death.mp3',
+                    egg: 'chicken_egg.mp3'
+                }
+            }
+        };
+        
+        // 初始化函数
+        function init() {
+            console.log('开始初始化游戏...');
+            
+            // 模拟加载过程
+            let progress = 0;
+            const loadingBar = document.getElementById('loading-bar');
+            const loadingText = document.getElementById('loading-text');
+            let loadingInterval;
+            
+            console.log('开始模拟加载过程...');
+            console.log('loadingBar:', loadingBar);
+            console.log('loadingText:', loadingText);
+            
+            // 添加跳过加载按钮事件监听器
+            const skipLoadingButton = document.getElementById('skip-loading');
+            console.log('skipLoadingButton:', skipLoadingButton);
+            if (skipLoadingButton) {
+                skipLoadingButton.addEventListener('click', () => {
+                    console.log('用户点击了跳过加载按钮');
+                    if (loadingInterval) {
+                        clearInterval(loadingInterval);
+                    }
+                    document.getElementById('loading-screen').classList.add('hidden');
+                    document.getElementById('main-menu').classList.remove('hidden');
+                    gameState = 'menu';
+                });
+            }
+            
+            loadingInterval = setInterval(() => {
+                try {
+                    progress += 5;
+                    loadingBar.style.width = `${progress}%`;
+                    
+                    console.log(`加载进度: ${progress}%`);
+                    
+                    if (progress === 20) {
+                        loadingText.textContent = '加载游戏资源...';
+                    } else if (progress === 40) {
+                        loadingText.textContent = '初始化3D引擎...';
+                    } else if (progress === 60) {
+                        loadingText.textContent = '生成世界...';
+                    } else if (progress === 80) {
+                        loadingText.textContent = '准备游戏...';
+                    }
+                    
+                    if (progress >= 100) {
+                        clearInterval(loadingInterval);
+                        console.log('加载完成，显示主菜单');
+                        setTimeout(() => {
+                            console.log('隐藏加载屏幕');
+                            document.getElementById('loading-screen').classList.add('hidden');
+                            console.log('显示主菜单');
+                            document.getElementById('main-menu').classList.remove('hidden');
+                            gameState = 'menu';
+                        }, 500);
+                    }
+                } catch (error) {
+                    console.error('加载过程中出现错误:', error);
+                    clearInterval(loadingInterval);
+                    // 即使出错也要显示主菜单
+                    setTimeout(() => {
+                        document.getElementById('loading-screen').classList.add('hidden');
+                        document.getElementById('main-menu').classList.remove('hidden');
+                        gameState = 'menu';
+                    }, 500);
+                }
+            }, 100);
+            
+            // 初始化事件监听（添加错误处理）
+            try {
+                setupEventListeners();
+            } catch (error) {
+                console.error('设置事件监听时出现错误:', error);
+                // 即使出错也要继续加载过程
+            }
+        }
+        
+        // 设置事件监听
+        function setupEventListeners() {
+            console.log('设置事件监听...');
+            
+            // 主菜单按钮
+            document.getElementById('play-button').addEventListener('click', () => {
+                console.log('点击了单人游戏按钮');
+                document.getElementById('main-menu').classList.add('hidden');
+                document.getElementById('singleplayer-menu').classList.remove('hidden');
+            });
+            
+            document.getElementById('multiplayer-button').addEventListener('click', () => {
+                console.log('点击了多人游戏按钮');
+                alert('多人游戏功能即将推出！');
+            });
+            
+            document.getElementById('options-button').addEventListener('click', () => {
+                console.log('点击了选项按钮');
+                document.getElementById('main-menu').classList.add('hidden');
+                document.getElementById('options-menu').classList.remove('hidden');
+            });
+            
+            document.getElementById('exit-button').addEventListener('click', () => {
+                console.log('点击了退出按钮');
+                if (confirm('确定要退出游戏吗？')) {
+                    window.close();
+                }
+            });
+            
+            // 单人游戏菜单按钮
+            document.getElementById('create-world-button').addEventListener('click', () => {
+                console.log('点击了创建新的世界按钮');
+                document.getElementById('singleplayer-menu').classList.add('hidden');
+                document.getElementById('create-world-menu').classList.remove('hidden');
+            });
+            
+            document.getElementById('back-from-singleplayer-button').addEventListener('click', () => {
+                console.log('点击了返回主菜单按钮');
+                document.getElementById('singleplayer-menu').classList.add('hidden');
+                document.getElementById('main-menu').classList.remove('hidden');
+            });
+            
+            // 创建世界菜单按钮
+            document.getElementById('survival-mode').addEventListener('click', function() {
+                console.log('选择了生存模式');
+                document.getElementById('survival-mode').classList.add('selected');
+                document.getElementById('creative-mode').classList.remove('selected');
+            });
+            
+            document.getElementById('creative-mode').addEventListener('click', function() {
+                console.log('选择了创造模式');
+                document.getElementById('creative-mode').classList.add('selected');
+                document.getElementById('survival-mode').classList.remove('selected');
+            });
+            
+            document.getElementById('create-world-confirm').addEventListener('click', () => {
+                const worldName = document.getElementById('world-name').value || '新的世界';
+                const seed = document.getElementById('seed').value || Math.floor(Math.random() * 1000000).toString();
+                const gameMode = document.getElementById('survival-mode').classList.contains('selected') ? 'survival' : 'creative';
+                
+                console.log(`创建世界: ${worldName}, 种子: ${seed}, 模式: ${gameMode}`);
+                
+                document.getElementById('create-world-menu').classList.add('hidden');
+                document.getElementById('game-container').classList.remove('hidden');
+                
+                // 初始化游戏
+                initGame(worldName, seed, gameMode);
+                
+                gameState = 'game';
+            });
+            
+            document.getElementById('back-from-create-world-button').addEventListener('click', () => {
+                console.log('点击了取消创建世界按钮');
+                document.getElementById('create-world-menu').classList.add('hidden');
+                document.getElementById('singleplayer-menu').classList.remove('hidden');
+            });
+            
+            // 选项菜单按钮
+            document.getElementById('render-distance').addEventListener('input', function() {
+                document.getElementById('render-distance-value').textContent = this.value;
+            });
+            
+            document.getElementById('back-from-options-button').addEventListener('click', () => {
+                console.log('点击了返回主菜单按钮');
+                document.getElementById('options-menu').classList.add('hidden');
+                document.getElementById('main-menu').classList.remove('hidden');
+            });
+            
+            // 游戏界面按钮
+            document.getElementById('inventory-button').addEventListener('click', toggleInventory);
+            document.getElementById('escape-button').addEventListener('click', toggleEscapeMenu);
+            
+            // 物品栏按钮
+            document.getElementById('close-inventory-button').addEventListener('click', toggleInventory);
+            
+            // ESC菜单按钮
+            document.getElementById('continue-button').addEventListener('click', toggleEscapeMenu);
+            document.getElementById('game-options-button').addEventListener('click', () => {
+                document.getElementById('escape-menu').classList.add('hidden');
+                document.getElementById('options-menu').classList.remove('hidden');
+            });
+            document.getElementById('save-quit-button').addEventListener('click', () => {
+                alert('世界已保存！');
+                document.getElementById('game-container').classList.add('hidden');
+                document.getElementById('main-menu').classList.remove('hidden');
+                gameState = 'menu';
+            });
+            document.getElementById('quit-button').addEventListener('click', () => {
+                if (confirm('确定要退出游戏吗？未保存的进度将会丢失！')) {
+                    document.getElementById('game-container').classList.add('hidden');
+                    document.getElementById('main-menu').classList.remove('hidden');
+                    gameState = 'menu';
+                }
+            });
+            
+            // 死亡屏幕按钮
+            document.getElementById('respawn-button').addEventListener('click', () => {
+                document.getElementById('death-screen').classList.add('hidden');
+                respawnPlayer();
+                gameState = 'game';
+            });
+            
+            document.getElementById('title-screen-button').addEventListener('click', () => {
+                document.getElementById('death-screen').classList.add('hidden');
+                document.getElementById('game-container').classList.add('hidden');
+                document.getElementById('main-menu').classList.remove('hidden');
+                gameState = 'menu';
+            });
+            
+            // 快捷栏和物品栏槽位点击
+            document.querySelectorAll('.hotbar-slot, .inventory-slot').forEach(slot => {
+                slot.addEventListener('click', function() {
+                    const slotNumber = this.dataset.slot;
+                    
+                    // 移除所有选中状态
+                    document.querySelectorAll('.hotbar-slot, .inventory-slot').forEach(s => {
+                        s.classList.remove('selected');
+                    });
+                    
+                    // 添加选中状态到当前槽位和镜像槽位
+                    document.querySelectorAll(`[data-slot="${slotNumber}"]`).forEach(s => {
+                        s.classList.add('selected');
+                    });
+                    
+                    selectedSlot = parseInt(slotNumber);
+                    
+                    // 更新选中的方块类型
+                    updateSelectedBlockType();
+                });
+            });
+            
+            // 键盘事件
+            document.addEventListener('keydown', (e) => {
+                if (gameState === 'game') {
+                    handleGameKeyDown(e);
+                } else if (gameState === 'inventory' || gameState === 'escape') {
+                    if (e.key === 'Escape') {
+                        toggleInventory();
+                        toggleEscapeMenu();
+                    }
+                }
+            });
+            
+            // 鼠标事件
+            document.addEventListener('mousedown', (e) => {
+                if (gameState === 'game') {
+                    handleGameMouseDown(e);
+                }
+            });
+            
+            // 提示信息
+            document.querySelectorAll('.hotbar-slot, .inventory-slot').forEach(slot => {
+                slot.addEventListener('mouseenter', function(e) {
+                    const tooltip = document.getElementById('tooltip');
+                    const slotNumber = this.dataset.slot;
+                    
+                    // 根据槽位获取物品信息
+                    let itemName = '';
+                    if (slotNumber === '0') itemName = '草方块';
+                    else if (slotNumber === '1') itemName = '泥土';
+                    else if (slotNumber === '2') itemName = '石头';
+                    else if (slotNumber === '3') itemName = '木头';
+                    else if (slotNumber === '4') itemName = '火把';
+                    else if (slotNumber === '5') itemName = '钻石';
+                    else if (slotNumber === '6') itemName = '红石';
+                    else if (slotNumber === '7') itemName = '食物';
+                    else if (slotNumber === '8') itemName = '工具';
+                    
+                    if (itemName) {
+                        tooltip.textContent = itemName;
+                        tooltip.style.left = `${e.pageX + 10}px`;
+                        tooltip.style.top = `${e.pageY + 10}px`;
+                        tooltip.classList.remove('hidden');
+                    }
+                });
+                
+                slot.addEventListener('mouseleave', function() {
+                    document.getElementById('tooltip').classList.add('hidden');
+                });
+                
+                slot.addEventListener('mousemove', function(e) {
+                    const tooltip = document.getElementById('tooltip');
+                    if (!tooltip.classList.contains('hidden')) {
+                        tooltip.style.left = `${e.pageX + 10}px`;
+                        tooltip.style.top = `${e.pageY + 10}px`;
+                    }
+                });
+            });
+        }
+        
+        // 初始化游戏
+        function initGame(worldName, seed, gameMode) {
+            try {
+                console.log(`初始化游戏: ${worldName}, 种子: ${seed}, 模式: ${gameMode}`);
+                
+                // 创建场景
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x87CEEB); // 天空蓝色
+                
+                // 创建相机
+                camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+                camera.position.set(0, 65, 0);
+                // 设置相机朝向
+                camera.lookAt(0, 30, 1);
+                
+                // 创建渲染器
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.shadowMap.enabled = true;
+                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                
+                // 添加到DOM
+                const container = document.getElementById('scene-container');
+                container.appendChild(renderer.domElement);
+                
+                // 添加指针锁定控制器
+                controls = new THREE.PointerLockControls(camera, renderer.domElement);
+                scene.add(controls.getObject());
+                
+                // 添加光源
+                addLights();
+                
+                // 初始化复用的几何体和材质
+                initReusableResources();
+                
+                // 创建世界
+                createWorld(seed);
+                
+                // 创建玩家
+                createPlayer();
+                
+                // 添加事件监听
+                window.addEventListener('resize', onWindowResize);
+                
+                // 开始游戏循环
+                gameLoop();
+                
+                // 锁定鼠标
+                controls.lock();
+            } catch (error) {
+                console.error('初始化游戏时出现错误:', error);
+                alert('初始化游戏时出现错误，请刷新页面重试。');
+                // 返回到主菜单
+                document.getElementById('game-container').classList.add('hidden');
+                document.getElementById('main-menu').classList.remove('hidden');
+                gameState = 'menu';
+            }
+        }
+        
+        // 初始化复用的资源
+        function initReusableResources() {
+            console.log('初始化复用的资源...');
+            
+            // 创建复用的几何体
+            boxGeometry = new THREE.BoxGeometry(1, 1, 1);
+            
+            // 创建复用的材质
+            const colors = {
+                'grass': 0x71A95A,
+                'dirt': 0x8B4513,
+                'stone': 0xA9A9A9,
+                'wood': 0xD2691E,
+                'leaves': 0x228B22,
+                'sand': 0xF4A460,
+                'water': 0x4682B4,
+                'bedrock': 0x2F4F4F
+            };
+            
+            for (const type in blockTypes) {
+                if (blockTypes[type].texture.startsWith('http')) {
+                    // 使用远程纹理
+                    blockMaterials[type] = new THREE.MeshStandardMaterial({
+                        map: new THREE.TextureLoader().load(blockTypes[type].texture),
+                        roughness: 0.8,
+                        metalness: 0.2
+                    });
+                } else {
+                    // 使用颜色代替纹理
+                    blockMaterials[type] = new THREE.MeshStandardMaterial({
+                        color: colors[type] || 0xFFFFFF,
+                        roughness: 0.8,
+                        metalness: 0.2,
+                        transparent: type === 'water',
+                        opacity: type === 'water' ? 0.7 : 1.0
+                    });
+                }
+            }
+        }
+        
+        // 添加光源
+        function addLights() {
+            // 太阳光（平行光）
+            const sunLight = new THREE.DirectionalLight(0xFFFFFF, 1.0);
+            sunLight.position.set(5, 10, 7.5);
+            sunLight.castShadow = true;
+            
+            // 设置阴影属性
+            sunLight.shadow.mapSize.width = 2048;
+            sunLight.shadow.mapSize.height = 2048;
+            sunLight.shadow.camera.near = 0.5;
+            sunLight.shadow.camera.far = 100;
+            sunLight.shadow.camera.left = -50;
+            sunLight.shadow.camera.right = 50;
+            sunLight.shadow.camera.top = 50;
+            sunLight.shadow.camera.bottom = -50;
+            
+            scene.add(sunLight);
+            
+            // 环境光
+            const ambientLight = new THREE.AmbientLight(0xFFFFFF, 0.5);
+            scene.add(ambientLight);
+        }
+        
+        // 创建世界
+        function createWorld(seed) {
+            console.log(`创建世界，种子: ${seed}`);
+            
+            // 初始化世界数据结构
+            world = {
+                chunks: {},
+                seed: seed,
+                loadedChunks: [],
+                heightMap: {} // 存储每个区块的高度图
+            };
+            
+            // 生成玩家周围的区块
+            const playerChunkX = Math.floor(0 / 16);
+            const playerChunkZ = Math.floor(0 / 16);
+            // 进一步减少渲染距离以提高性能
+            const renderDistance = 2;
+            
+            console.log(`生成区块，渲染距离: ${renderDistance}`);
+            
+            for (let x = -renderDistance; x <= renderDistance; x++) {
+                for (let z = -renderDistance; z <= renderDistance; z++) {
+                    generateChunk(playerChunkX + x, playerChunkZ + z);
+                }
+            }
+            
+            console.log(`世界创建完成，加载了 ${world.loadedChunks.length} 个区块`);
+            console.log(`场景中的对象数量: ${scene.children.length}`);
+        }
+        
+        // 生成区块
+        function generateChunk(chunkX, chunkZ) {
+            try {
+                const chunkKey = `${chunkX},${chunkZ}`;
+                
+                // 如果区块已存在，直接返回
+                if (world.chunks[chunkKey]) {
+                    return;
+                }
+                
+                // 创建区块组
+                const chunk = new THREE.Group();
+                chunk.position.set(chunkX * 16, 0, chunkZ * 16);
+                
+                // 初始化区块高度图
+                const heightMap = {};
+                
+                // 生成区块地形
+                let blockCount = 0;
+                for (let x = 0; x < 16; x++) {
+                    for (let z = 0; z < 16; z++) {
+                        // 使用简单的噪声函数生成高度
+                        const height = generateHeight(chunkX * 16 + x, chunkZ * 16 + z);
+                        
+                        // 存储高度到高度图
+                        heightMap[`${x},${z}`] = height;
+                        
+                        // 创建柱状方块
+                        for (let y = 0; y < height; y++) {
+                            let blockType;
+                            
+                            if (y === height - 1) {
+                                blockType = 'grass';
+                            } else if (y > height - 4) {
+                                blockType = 'dirt';
+                            } else {
+                                blockType = 'stone';
+                            }
+                            
+                            // 创建方块
+                            const block = createBlock(blockType, x, y, z);
+                            if (block) {
+                                chunk.add(block);
+                                blockCount++;
+                            }
+                        }
+                    }
+                }
+                
+                // 添加到场景和世界数据
+                scene.add(chunk);
+                world.chunks[chunkKey] = chunk;
+                world.heightMap[chunkKey] = heightMap;
+                world.loadedChunks.push({x: chunkX, z: chunkZ});
+                
+                console.log(`生成区块 ${chunkKey}，包含 ${blockCount} 个方块`);
+            } catch (error) {
+                console.error('生成区块时出现错误:', error);
+                // 即使出错也要继续运行
+            }
+        }
+        
+        // 生成高度
+        function generateHeight(x, z) {
+            // 使用简单的正弦函数模拟地形
+            const height = 30 + 
+                Math.sin(x * 0.05) * 5 + 
+                Math.sin(z * 0.05) * 5 + 
+                Math.sin(Math.sqrt(x * x + z * z) * 0.05) * 3;
+            
+            return Math.floor(height);
+        }
+        
+        // 创建方块
+        function createBlock(type, x, y, z) {
+            try {
+                // 确保材质存在
+                if (!blockMaterials[type]) {
+                    console.error(`材质不存在: ${type}`);
+                    return null;
+                }
+                
+                // 使用复用的几何体和材质
+                const block = new THREE.Mesh(boxGeometry, blockMaterials[type]);
+                block.position.set(x, y, z);
+                block.castShadow = true;
+                block.receiveShadow = true;
+                
+                // 添加方块数据
+                block.userData = {
+                    type: type,
+                    position: {x, y, z},
+                    hardness: blockTypes[type].hardness
+                };
+                
+                return block;
+            } catch (error) {
+                console.error('创建方块时出现错误:', error);
+                return null;
+            }
+        }
+        
+        // 创建玩家
+        function createPlayer() {
+            player = {
+                position: new THREE.Vector3(0, 65, 0),
+                velocity: new THREE.Vector3(0, 0, 0),
+                health: 20,
+                hunger: 20,
+                experience: 0,
+                gamemode: 'survival',
+                inventory: Array(36).fill(null),
+                selectedSlot: 0,
+                onGround: true
+            };
+            
+            // 初始化物品栏
+            player.inventory[0] = {type: 'grass', count: 64};
+            player.inventory[1] = {type: 'dirt', count: 64};
+            player.inventory[2] = {type: 'stone', count: 64};
+            player.inventory[3] = {type: 'wood', count: 32};
+            player.inventory[4] = {type: 'wooden_pickaxe', count: 1};
+            player.inventory[5] = {type: 'wooden_axe', count: 1};
+            player.inventory[6] = {type: 'wooden_shovel', count: 1};
+            player.inventory[7] = {type: 'bread', count: 16};
+            player.inventory[8] = {type: 'apple', count: 8};
+        }
+        
+        // 处理游戏键盘按下事件
+        function handleGameKeyDown(e) {
+            switch(e.key) {
+                case 'w':
+                case 'W':
+                    controls.moveForward(0.1);
+                    break;
+                case 's':
+                case 'S':
+                    controls.moveForward(-0.1);
+                    break;
+                case 'a':
+                case 'A':
+                    controls.moveRight(-0.1);
+                    break;
+                case 'd':
+                case 'D':
+                    controls.moveRight(0.1);
+                    break;
+                case ' ':
+                    // 跳跃
+                    if (player.onGround) {
+                        player.velocity.y = 0.3;
+                        player.onGround = false;
+                    }
+                    break;
+                case 'e':
+                case 'E':
+                    toggleInventory();
+                    break;
+                case 'Escape':
+                    toggleEscapeMenu();
+                    break;
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+                    // 选择快捷栏
+                    const slot = parseInt(e.key) - 1;
+                    selectSlot(slot);
+                    break;
+                case 'f3':
+                    // 切换调试模式
+                    debugMode = !debugMode;
+                    document.getElementById('debug-info').style.display = debugMode ? 'block' : 'none';
+                    break;
+            }
+        }
+        
+        // 处理游戏鼠标按下事件
+        function handleGameMouseDown(e) {
+            if (!controls.isLocked) return;
+            
+            if (e.button === 0) {
+                // 左键 - 破坏方块
+                breakBlock();
+            } else if (e.button === 2) {
+                // 右键 - 放置方块
+                placeBlock();
+            }
+        }
+        
+        // 破坏方块
+        function breakBlock() {
+            // 射线检测
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            
+            const intersects = raycaster.intersectObjects(scene.children, true);
+            
+            if (intersects.length > 0) {
+                const intersection = intersects[0];
+                const block = intersection.object;
+                
+                // 检查是否是方块
+                if (block.userData && block.userData.type) {
+                    // 检查方块是否可破坏
+                    if (block.userData.hardness === -1) {
+                        // 不可破坏的方块（如水、基岩）
+                        return;
+                    }
+                    
+                    // 获取方块位置
+                    const pos = block.userData.position;
+                    
+                    // 移除方块
+                    block.parent.remove(block);
+                    
+                    // 添加到物品栏
+                    addToInventory(block.userData.type);
+                    
+                    // 更新世界数据
+                    updateWorldData(pos.x, pos.y, pos.z, null);
+                }
+            }
+        }
+        
+        // 放置方块
+        function placeBlock() {
+            // 射线检测
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            
+            const intersects = raycaster.intersectObjects(scene.children, true);
+            
+            if (intersects.length > 0) {
+                const intersection = intersects[0];
+                const block = intersection.object;
+                
+                // 检查是否是方块
+                if (block.userData && block.userData.type) {
+                    // 计算放置位置
+                    const pos = new THREE.Vector3();
+                    pos.copy(intersection.point).add(intersection.face.normal);
+                    pos.floor();
+                    
+                    // 检查是否可以放置
+                    if (canPlaceBlock(pos.x, pos.y, pos.z)) {
+                        // 创建新方块
+                        const newBlock = createBlock(selectedBlockType, pos.x, pos.y, pos.z);
+                        
+                        // 添加到场景
+                        const chunkX = Math.floor(pos.x / 16);
+                        const chunkZ = Math.floor(pos.z / 16);
+                        const chunkKey = `${chunkX},${chunkZ}`;
+                        
+                        if (world.chunks[chunkKey]) {
+                            world.chunks[chunkKey].add(newBlock);
+                            
+                            // 更新世界数据
+                            updateWorldData(pos.x, pos.y, pos.z, selectedBlockType);
+                            
+                            // 从物品栏减少
+                            removeFromInventory(selectedBlockType);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 检查是否可以放置方块
+        function canPlaceBlock(x, y, z) {
+            // 检查是否在世界边界内
+            if (y < 0 || y > 255) {
+                return false;
+            }
+            
+            // 检查是否与玩家碰撞
+            const playerBox = new THREE.Box3(
+                new THREE.Vector3(player.position.x - 0.5, player.position.y - 1.8, player.position.z - 0.5),
+                new THREE.Vector3(player.position.x + 0.5, player.position.y + 0.2, player.position.z + 0.5)
+            );
+            
+            const blockBox = new THREE.Box3(
+                new THREE.Vector3(x, y, z),
+                new THREE.Vector3(x + 1, y + 1, z + 1)
+            );
+            
+            if (playerBox.intersectsBox(blockBox)) {
+                return false;
+            }
+            
+            // 检查位置是否已有方块
+            return !getBlock(x, y, z);
+        }
+        
+        // 获取方块
+        function getBlock(x, y, z) {
+            const chunkX = Math.floor(x / 16);
+            const chunkZ = Math.floor(z / 16);
+            const chunkKey = `${chunkX},${chunkZ}`;
+            
+            if (!world.chunks[chunkKey]) {
+                return null;
+            }
+            
+            const localX = Math.floor(x) % 16;
+            const localZ = Math.floor(z) % 16;
+            
+            // 遍历区块中的所有方块
+            for (let i = 0; i < world.chunks[chunkKey].children.length; i++) {
+                const block = world.chunks[chunkKey].children[i];
+                if (block.userData && 
+                    block.userData.position.x === localX && 
+                    block.userData.position.y === y && 
+                    block.userData.position.z === localZ) {
+                    return block;
+                }
+            }
+            
+            return null;
+        }
+        
+        // 更新世界数据
+        function updateWorldData(x, y, z, type) {
+            // 这个函数用于更新世界数据结构
+            // 在实际实现中，这里会更新区块数据
+        }
+        
+        // 添加物品到物品栏
+        function addToInventory(type) {
+            // 检查物品栏是否已有该物品
+            for (let i = 0; i < player.inventory.length; i++) {
+                const item = player.inventory[i];
+                if (item && item.type === type && item.count < 64) {
+                    item.count++;
+                    return;
+                }
+            }
+            
+            // 找一个空槽位
+            for (let i = 0; i < player.inventory.length; i++) {
+                if (!player.inventory[i]) {
+                    player.inventory[i] = {type: type, count: 1};
+                    return;
+                }
+            }
+            
+            // 物品栏已满，丢弃物品
+            console.log(`丢弃了一个 ${type}`);
+        }
+        
+        // 从物品栏移除物品
+        function removeFromInventory(type) {
+            // 检查物品栏是否有该物品
+            for (let i = 0; i < player.inventory.length; i++) {
+                const item = player.inventory[i];
+                if (item && item.type === type) {
+                    item.count--;
+                    if (item.count <= 0) {
+                        player.inventory[i] = null;
+                    }
+                    return;
+                }
+            }
+        }
+        
+        // 选择槽位
+        function selectSlot(slot) {
+            if (slot >= 0 && slot < 9) {
+                selectedSlot = slot;
+                
+                // 更新UI
+                document.querySelectorAll('.hotbar-slot, .inventory-slot').forEach(s => {
+                    s.classList.remove('selected');
+                });
+                
+                document.querySelectorAll(`[data-slot="${slot}"]`).forEach(s => {
+                    s.classList.add('selected');
+                });
+                
+                // 更新选中的方块类型
+                updateSelectedBlockType();
+            }
+        }
+        
+        // 更新选中的方块类型
+        function updateSelectedBlockType() {
+            const item = player.inventory[selectedSlot];
+            if (item && blockTypes[item.type]) {
+                selectedBlockType = item.type;
+            } else {
+                selectedBlockType = null;
+            }
+        }
+        
+        // 切换物品栏
+        function toggleInventory() {
+            const inventory = document.getElementById('inventory');
+            
+            if (inventory.classList.contains('hidden')) {
+                inventory.classList.remove('hidden');
+                controls.unlock();
+                gameState = 'inventory';
+            } else {
+                inventory.classList.add('hidden');
+                controls.lock();
+                gameState = 'game';
+            }
+        }
+        
+        // 切换ESC菜单
+        function toggleEscapeMenu() {
+            const escapeMenu = document.getElementById('escape-menu');
+            
+            if (escapeMenu.classList.contains('hidden')) {
+                escapeMenu.classList.remove('hidden');
+                controls.unlock();
+                gameState = 'escape';
+            } else {
+                escapeMenu.classList.add('hidden');
+                controls.lock();
+                gameState = 'game';
+            }
+        }
+        
+        // 重生玩家
+        function respawnPlayer() {
+            player.position.set(0, 65, 0);
+            player.health = 20;
+            player.hunger = 20;
+            controls.getObject().position.copy(player.position);
+        }
+        
+        // 窗口大小调整
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // 游戏循环
+        function gameLoop() {
+            requestAnimationFrame(gameLoop);
+            
+            // 计算帧率
+            const currentTime = performance.now();
+            const deltaTime = currentTime - lastFrameTime;
+            lastFrameTime = currentTime;
+            
+            // 每秒钟更新一次帧率
+            if (deltaTime > 0) {
+                fps = Math.round(1000 / deltaTime);
+            }
+            
+            if (gameState === 'game') {
+                // 更新玩家位置
+                updatePlayer();
+                
+                // 更新实体
+                updateEntities();
+                
+                // 更新调试信息
+                if (debugMode) {
+                    updateDebugInfo();
+                }
+                
+                // 渲染场景
+                renderer.render(scene, camera);
+            }
+        }
+        
+        // 更新玩家
+        function updatePlayer() {
+            // 获取控制器位置
+            const controllerPos = controls.getObject().position;
+            
+            // 更新玩家位置
+            player.position.copy(controllerPos);
+            
+            // 简单的重力系统
+            if (!player.onGround) {
+                player.velocity.y -= 0.01;
+                player.position.y += player.velocity.y;
+                
+                // 检查是否接触地面
+                const groundY = getGroundHeight(player.position.x, player.position.z);
+                if (player.position.y <= groundY + 1.8) {
+                    player.position.y = groundY + 1.8;
+                    player.velocity.y = 0;
+                    player.onGround = true;
+                }
+            }
+            
+            // 更新控制器位置
+            controls.getObject().position.copy(player.position);
+            
+            // 检查区块加载
+            checkChunkLoading();
+        }
+        
+        // 获取地面高度
+        function getGroundHeight(x, z) {
+            const chunkX = Math.floor(x / 16);
+            const chunkZ = Math.floor(z / 16);
+            const chunkKey = `${chunkX},${chunkZ}`;
+            
+            if (!world.heightMap[chunkKey]) {
+                return 0;
+            }
+            
+            const localX = Math.floor(x) % 16;
+            const localZ = Math.floor(z) % 16;
+            
+            // 从高度图中直接获取高度
+            return world.heightMap[chunkKey][`${localX},${localZ}`] || 0;
+        }
+        
+        // 检查区块加载
+        function checkChunkLoading() {
+            // 每几帧检查一次区块加载，减少性能消耗
+            if (Math.floor(clock.getElapsedTime() * 60) % 5 !== 0) {
+                return;
+            }
+            
+            const playerChunkX = Math.floor(player.position.x / 16);
+            const playerChunkZ = Math.floor(player.position.z / 16);
+            // 减少默认渲染距离以提高性能
+            const renderDistance = parseInt(document.getElementById('render-distance').value) || 4;
+            
+            // 加载新区块
+            for (let x = -renderDistance; x <= renderDistance; x++) {
+                for (let z = -renderDistance; z <= renderDistance; z++) {
+                    const chunkX = playerChunkX + x;
+                    const chunkZ = playerChunkZ + z;
+                    const chunkKey = `${chunkX},${chunkZ}`;
+                    
+                    if (!world.chunks[chunkKey]) {
+                        generateChunk(chunkX, chunkZ);
+                    }
+                }
+            }
+            
+            // 卸载远处的区块
+            const loadedChunks = [...world.loadedChunks];
+            for (let i = 0; i < loadedChunks.length; i++) {
+                const chunk = loadedChunks[i];
+                const distance = Math.sqrt(
+                    Math.pow(chunk.x - playerChunkX, 2) + 
+                    Math.pow(chunk.z - playerChunkZ, 2)
+                );
+                
+                if (distance > renderDistance + 2) {
+                    const chunkKey = `${chunk.x},${chunk.z}`;
+                    
+                    // 从场景中移除
+                    if (world.chunks[chunkKey]) {
+                        scene.remove(world.chunks[chunkKey]);
+                        delete world.chunks[chunkKey];
+                        delete world.heightMap[chunkKey];
+                    }
+                    
+                    // 从加载列表中移除
+                    world.loadedChunks = world.loadedChunks.filter(c => c.x !== chunk.x || c.z !== chunk.z);
+                }
+            }
+        }
+        
+        // 更新实体
+        function updateEntities() {
+            // 在实际实现中，这里会更新所有实体的位置、行为等
+        }
+        
+        // 更新调试信息
+        function updateDebugInfo() {
+            const debugInfo = document.getElementById('debug-info');
+            debugInfo.innerHTML = `
+                X: ${player.position.x.toFixed(1)}, Y: ${player.position.y.toFixed(1)}, Z: ${player.position.z.toFixed(1)}<br>
+                FPS: ${fps}<br>
+                区块: ${Math.floor(player.position.x / 16)},${Math.floor(player.position.z / 16)}<br>
+                生物: ${allEntities.length}
+            `;
+        }
+        
+        // 页面加载完成后初始化
+        console.log('等待页面加载完成...');
+        
+        // 直接调用init函数，确保游戏能够启动
+        try {
+            init();
+        } catch (error) {
+            console.error('初始化时出现错误:', error);
+            // 即使出错也要显示主菜单
+            setTimeout(() => {
+                document.getElementById('loading-screen').classList.add('hidden');
+                document.getElementById('main-menu').classList.remove('hidden');
+                gameState = 'menu';
+            }, 500);
+        }
+        
+        // 同时监听load事件，确保在所有资源加载完成后再次初始化
+        window.addEventListener('load', () => {
+            console.log('页面加载完成，重新初始化...');
+            try {
+                init();
+            } catch (error) {
+                console.error('load事件初始化时出现错误:', error);
+            }
+        });
+    </script>
+</body>
+</html>
