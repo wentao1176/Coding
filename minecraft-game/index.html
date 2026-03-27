@@ -462,31 +462,31 @@
             },
             'wood': {
                 name: '木头',
-                texture: 'wood.png',
+                texture: 'wood',
                 hardness: 2.0,
                 tool: 'axe'
             },
             'leaves': {
                 name: '树叶',
-                texture: 'leaves.png',
+                texture: 'leaves',
                 hardness: 0.2,
                 tool: 'shears'
             },
             'sand': {
                 name: '沙子',
-                texture: 'sand.png',
+                texture: 'sand',
                 hardness: 0.5,
                 tool: 'shovel'
             },
             'water': {
                 name: '水',
-                texture: 'water.png',
+                texture: 'water',
                 hardness: -1,
                 tool: null
             },
             'bedrock': {
                 name: '基岩',
-                texture: 'bedrock.png',
+                texture: 'bedrock',
                 hardness: -1,
                 tool: null
             }
@@ -974,7 +974,7 @@
             
             // 创建相机
             camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 65, 0);
+            camera.position.set(0, 65, 5);
             
             // 创建渲染器
             renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -1045,13 +1045,17 @@
             // 生成玩家周围的区块
             const playerChunkX = Math.floor(0 / 16);
             const playerChunkZ = Math.floor(0 / 16);
-            const renderDistance = parseInt(document.getElementById('render-distance').value) || 8;
+            const renderDistance = parseInt(document.getElementById('render-distance').value) || 4;
+            
+            console.log(`开始生成世界，种子: ${seed}, 渲染距离: ${renderDistance}`);
             
             for (let x = -renderDistance; x <= renderDistance; x++) {
                 for (let z = -renderDistance; z <= renderDistance; z++) {
                     generateChunk(playerChunkX + x, playerChunkZ + z);
                 }
             }
+            
+            console.log(`世界生成完成，共生成 ${Object.keys(world.chunks).length} 个区块`);
         }
         
         // 生成区块
@@ -1067,7 +1071,10 @@
             const chunk = new THREE.Group();
             chunk.position.set(chunkX * 16, 0, chunkZ * 16);
             
+            console.log(`生成区块: ${chunkX},${chunkZ}`);
+            
             // 生成区块地形
+            let blockCount = 0;
             for (let x = 0; x < 16; x++) {
                 for (let z = 0; z < 16; z++) {
                     // 使用简单的噪声函数生成高度
@@ -1088,9 +1095,12 @@
                         // 创建方块
                         const block = createBlock(blockType, x, y, z);
                         chunk.add(block);
+                        blockCount++;
                     }
                 }
             }
+            
+            console.log(`区块 ${chunkX},${chunkZ} 生成完成，包含 ${blockCount} 个方块`);
             
             // 添加到场景和世界数据
             scene.add(chunk);
@@ -1100,11 +1110,11 @@
         
         // 生成高度
         function generateHeight(x, z) {
-            // 使用简单的正弦函数模拟地形
-            const height = 30 + 
-                Math.sin(x * 0.05) * 5 + 
-                Math.sin(z * 0.05) * 5 + 
-                Math.sin(Math.sqrt(x * x + z * z) * 0.05) * 3;
+            // 使用简单的正弦函数模拟地形，确保生成足够高的地形
+            const height = 50 + 
+                Math.sin(x * 0.05) * 8 + 
+                Math.sin(z * 0.05) * 8 + 
+                Math.sin(Math.sqrt(x * x + z * z) * 0.05) * 5;
             
             return Math.floor(height);
         }
