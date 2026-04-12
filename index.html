@@ -209,45 +209,88 @@
             font-weight: 600;
         }
         @media (max-width: 768px) {
+            body {
+                background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+                padding: 15px;
+                border: 3px solid rgba(255, 255, 255, 0.1);
+                border-radius: 20px;
+                height: calc(100vh - 30px);
+            }
             .user-info {
+                position: absolute;
                 top: 10px;
                 right: 10px;
-                left: 10px;
-                padding: 12px 15px;
-                max-width: calc(100% - 20px);
-                word-wrap: break-word;
-                text-align: center;
+                padding: 8px 12px;
+                font-size: 0.8rem;
+                border-radius: 10px;
+                z-index: 1000;
+                max-width: none;
+                word-wrap: normal;
+                text-align: right;
+            }
+            .user-info button {
+                padding: 6px 12px;
+                font-size: 0.75rem;
+                border-radius: 15px;
+            }
+            .main-content {
+                width: 100%;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
             }
             .title {
-                font-size: 3rem;
-                margin-bottom: 20px;
+                font-size: 2.5rem;
+                margin-bottom: 10px;
+                opacity: 0.15;
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                white-space: nowrap;
+                z-index: 1;
             }
             .subtitle {
-                font-size: 1rem;
-                margin-bottom: 20px;
+                font-size: 0.9rem;
+                margin-bottom: 30px;
+                opacity: 0.7;
+                z-index: 10;
             }
-            .stats {
-                gap: 20px;
+            .games-container {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                max-width: 100%;
+                padding: 0;
+                z-index: 10;
             }
-            .stat-item {
-                padding: 15px 30px;
-            }
-            .stat-number {
-                font-size: 2rem;
+            .game-button {
+                display: flex;
+                align-items: center;
+                padding: 15px 20px;
+                border-radius: 15px;
+                min-width: auto;
+                width: 100%;
+                max-width: 320px;
             }
             .game-icon {
-                font-size: 2rem;
-                margin-bottom: 10px;
+                font-size: 1.8rem;
+                margin-bottom: 0;
+                margin-right: 15px;
             }
             .game-title {
-                font-size: 0.9rem;
+                font-size: 1rem;
+                margin-bottom: 3px;
+                text-align: left;
             }
             .game-desc {
                 font-size: 0.7rem;
+                text-align: left;
             }
-            .games-container {
-                gap: 15px;
-                padding: 10px;
+            .game-text {
+                text-align: left;
             }
         }
     </style>
@@ -274,23 +317,31 @@
         <div class="games-container">
             <div class="game-button" onclick="startMinesweeper()">
                 <span class="game-icon">💣</span>
-                <div class="game-title">扫雷游戏</div>
-                <div class="game-desc">点击进入全屏游戏</div>
+                <div class="game-text">
+                    <div class="game-title">扫雷游戏</div>
+                    <div class="game-desc">点击进入全屏游戏</div>
+                </div>
             </div>
             <div class="game-button" onclick="startSnakeGame()">
                 <span class="game-icon">🐍</span>
-                <div class="game-title">贪吃蛇游戏</div>
-                <div class="game-desc">点击进入全屏游戏</div>
+                <div class="game-text">
+                    <div class="game-title">贪吃蛇游戏</div>
+                    <div class="game-desc">点击进入全屏游戏</div>
+                </div>
             </div>
             <div class="game-button" onclick="startGoGame()">
                 <span class="game-icon">⚫</span>
-                <div class="game-title">五子棋游戏</div>
-                <div class="game-desc">双人联机对战</div>
+                <div class="game-text">
+                    <div class="game-title">五子棋游戏</div>
+                    <div class="game-desc">双人联机对战</div>
+                </div>
             </div>
             <div class="game-button" onclick="startMinecraftGame()">
                 <span class="game-icon">⛏️</span>
-                <div class="game-title">我的世界</div>
-                <div class="game-desc">3D沙盒游戏</div>
+                <div class="game-text">
+                    <div class="game-title">我的世界</div>
+                    <div class="game-desc">3D沙盒游戏</div>
+                </div>
             </div>
         </div>
     </div>
