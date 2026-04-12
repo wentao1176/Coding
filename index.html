@@ -242,15 +242,16 @@
                 align-items: center;
             }
             .title {
-                font-size: 2.5rem;
+                font-size: 3.5rem;
                 margin-bottom: 10px;
-                opacity: 0.15;
+                opacity: 0.25;
                 position: absolute;
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
                 white-space: nowrap;
                 z-index: 1;
+                line-height: 1.3;
             }
             .subtitle {
                 font-size: 0.9rem;
@@ -464,13 +465,13 @@
             const y = random(50, canvas.height / 2);
             const color = colors[Math.floor(random(0, colors.length))];
             
-            for (let i = 0; i < 150; i++) {
+            for (let i = 0; i < 80; i++) {
                 particles.push(new Particle(x, y, color));
             }
         }
 
         function animate() {
-            ctx.fillStyle = 'rgba(102, 126, 234, 0.05)';
+            ctx.fillStyle = 'rgba(102, 126, 234, 0.2)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
             for (let i = particles.length - 1; i >= 0; i--) {
