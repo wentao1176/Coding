@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小鳄鱼洗澡</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background: linear-gradient(180deg, #87CEEB 0%, #98D8C8 50%, #7FC8A0 100%);
+            font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+        }
+        #gameCanvas {
+            display: block;
+            margin: 0 auto;
+        }
+        .ui-overlay {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+        }
+        .back-btn {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #333;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+        .back-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        .game-info {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+            text-align: center;
+            z-index: 100;
+        }
+        .level-info {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #4A90D9;
+            margin-bottom: 5px;
+        }
+        .water-count {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #3498db;
+        }
+        .water-icon {
+            font-size: 1.3rem;
+        }
+        .start-screen, .win-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(135, 206, 235, 0.95) 0%, rgba(152, 216, 200, 0.95) 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+        }
+        .game-title {
+            font-size: 3rem;
+            font-weight: 900;
+            color: #2E8B57;
+            text-shadow: 3px 3px 0 #fff, 5px 5px 10px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+            animation: bounce 2s ease-in-out infinite;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+        .crocodile-preview {
+            font-size: 8rem;
+            margin-bottom: 40px;
+            animation: wiggle 1s ease-in-out infinite;
+        }
+        @keyframes wiggle {
+            0%, 100% { transform: rotate(-5deg); }
+            50% { transform: rotate(5deg); }
+        }
+        .start-btn, .next-btn {
+            padding: 15px 50px;
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            border: none;
+            border-radius: 30px;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+            transition: all 0.3s ease;
+        }
+        .start-btn:hover, .next-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(76, 175, 80, 0.5);
+        }
+        .win-screen {
+            display: none;
+        }
+        .win-title {
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: #FFD700;
+            text-shadow: 2px 2px 0 #fff, 4px 4px 10px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+        .win-stars {
+            font-size: 4rem;
+            margin-bottom: 30px;
+        }
+        .instructions {
+            font-size: 1rem;
+            color: #555;
+            margin-top: 20px;
+            text-align: center;
+            line-height: 1.8;
+        }
+        @media (max-width: 768px) {
+            .game-title {
+                font-size: 2rem;
+            }
+            .crocodile-preview {
+                font-size: 5rem;
+            }
+            .start-btn, .next-btn {
+                padding: 12px 40px;
+                font-size: 1.1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    
+    <div class="ui-overlay">
+        <button class="back-btn" onclick="goBack()">← 返回</button>
+    </div>
+    
+    <div class="game-info">
+        <div class="level-info">关卡 <span id="levelNum">1</span></div>
+        <div class="water-count">
+            <span class="water-icon">💧</span>
+            <span id="waterCollected">0</span> / <span id="waterNeeded">5</span>
+        </div>
+    </div>
+    
+    <div class="start-screen" id="startScreen">
+        <div class="game-title">🐊 小鳄鱼洗澡 🛁</div>
+        <div class="crocodile-preview">🐊</div>
+        <button class="start-btn" onclick="startGame()">开始游戏</button>
+        <div class="instructions">
+            点击云朵引导雨水下落<br>
+            收集足够的水滴帮助小鳄鱼洗澡！
+        </div>
+    </div>
+    
+    <div class="win-screen" id="winScreen">
+        <div class="win-title">🎉 太棒了！🎉</div>
+        <div class="win-stars">⭐⭐⭐</div>
+        <div class="crocodile-preview">🐊😄</div>
+        <button class="next-btn" onclick="nextLevel()">下一关</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let gameState = 'start';
+        let currentLevel = 1;
+        let waterCollected = 0;
+        let waterNeeded = 5;
+        let clouds = [];
+        let waterDrops = [];
+        let pipes = [];
+        let ducklings = [];
+        let score = 0;
+        
+        const levelConfigs = [
+            { waterNeeded: 5, cloudCount: 3, pipeCount: 2, hasDuck: false },
+            { waterNeeded: 7, cloudCount: 4, pipeCount: 3, hasDuck: false },
+            { waterNeeded: 10, cloudCount: 4, pipeCount: 3, hasDuck: true },
+            { waterNeeded: 12, cloudCount: 5, pipeCount: 4, hasDuck: true },
+            { waterNeeded: 15, cloudCount: 5, pipeCount: 4, hasDuck: true }
+        ];
+        
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        class Cloud {
+            constructor(x, y, size) {
+                this.x = x;
+                this.y = y;
+                this.size = size;
+                this.rainTimer = 0;
+                this.isRaining = false;
+                this.animFrame = 0;
+            }
+            
+            draw() {
+                const x = this.x;
+                const y = this.y;
+                const s = this.size;
+                
+                ctx.save();
+                
+                if (this.isRaining) {
+                    ctx.shadowColor = '#87CEEB';
+                    ctx.shadowBlur = 20;
+                }
+                
+                ctx.fillStyle = this.isRaining ? '#B0C4DE' : '#FFFFFF';
+                ctx.beginPath();
+                ctx.arc(x, y, s * 0.5, 0, Math.PI * 2);
+                ctx.arc(x + s * 0.4, y - s * 0.1, s * 0.4, 0, Math.PI * 2);
+                ctx.arc(x + s * 0.8, y, s * 0.45, 0, Math.PI * 2);
+                ctx.arc(x + s * 0.4, y + s * 0.2, s * 0.35, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.beginPath();
+                ctx.arc(x + s * 0.2, y - s * 0.15, s * 0.25, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.restore();
+                
+                if (this.isRaining) {
+                    this.drawRain(x, y, s);
+                }
+            }
+            
+            drawRain(x, y, s) {
+                const dropCount = 5;
+                for (let i = 0; i < dropCount; i++) {
+                    const dx = x - s * 0.3 + (i * s * 0.15);
+                    const dy = y + s * 0.6 + (this.animFrame * 3) % 30;
+                    
+                    ctx.fillStyle = '#87CEEB';
+                    ctx.beginPath();
+                    ctx.ellipse(dx, dy, 3, 8, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = 'rgba(135, 206, 235, 0.5)';
+                    ctx.beginPath();
+                    ctx.ellipse(dx - 2, dy + 5, 2, 4, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                this.animFrame++;
+            }
+            
+            update() {
+                if (this.isRaining) {
+                    this.rainTimer++;
+                    if (this.rainTimer % 15 === 0 && waterDrops.length < 50) {
+                        const dropX = this.x - this.size * 0.3 + Math.random() * this.size * 0.6;
+                        waterDrops.push(new WaterDrop(dropX, this.y + this.size * 0.6));
+                    }
+                }
+            }
+            
+            contains(px, py) {
+                const dx = px - this.x;
+                const dy = py - this.y;
+                return dx * dx + dy * dy < (this.size * 0.8) * (this.size * 0.8);
+            }
+        }
+        
+        class WaterDrop {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vy = 2;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.size = 6 + Math.random() * 4;
+                this.alive = true;
+                this.trail = [];
+            }
+            
+            update() {
+                this.trail.push({ x: this.x, y: this.y });
+                if (this.trail.length > 5) this.trail.shift();
+                
+                this.vy += 0.3;
+                this.y += this.vy;
+                this.x += this.vx;
+                
+                for (let pipe of pipes) {
+                    if (this.checkPipeCollision(pipe)) {
+                        this.alive = false;
+                        break;
+                    }
+                }
+                
+                if (this.y > canvas.height - 100) {
+                    this.alive = false;
+                }
+            }
+            
+            checkPipeCollision(pipe) {
+                const inPipeX = this.x > pipe.x && this.x < pipe.x + pipe.width;
+                const inPipeY = this.y > pipe.y && this.y < pipe.y + pipe.height;
+                
+                if (inPipeX && inPipeY) {
+                    if (pipe.direction === 'down') {
+                        this.vy = 3;
+                    } else if (pipe.direction === 'left') {
+                        this.vx = -4;
+                        this.vy = 1;
+                        this.y = pipe.y + pipe.height / 2;
+                    } else if (pipe.direction === 'right') {
+                        this.vx = 4;
+                        this.vy = 1;
+                        this.y = pipe.y + pipe.height / 2;
+                    }
+                    return true;
+                }
+                return false;
+            }
+            
+            draw() {
+                for (let i = 0; i < this.trail.length; i++) {
+                    const t = this.trail[i];
+                    const alpha = (i / this.trail.length) * 0.3;
+                    ctx.fillStyle = `rgba(135, 206, 235, ${alpha})`;
+                    ctx.beginPath();
+                    ctx.arc(t.x, t.y, this.size * 0.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                const gradient = ctx.createRadialGradient(
+                    this.x - this.size * 0.2, this.y - this.size * 0.2, 0,
+                    this.x, this.y, this.size
+                );
+                gradient.addColorStop(0, '#E0F7FA');
+                gradient.addColorStop(0.5, '#87CEEB');
+                gradient.addColorStop(1, '#4FC3F7');
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.beginPath();
+                ctx.arc(this.x - this.size * 0.3, this.y - this.size * 0.3, this.size * 0.3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+        class Pipe {
+            constructor(x, y, width, height, direction) {
+                this.x = x;
+                this.y = y;
+                this.width = width;
+                this.height = height;
+                this.direction = direction;
+            }
+            
+            draw() {
+                ctx.save();
+                
+                const gradient = ctx.createLinearGradient(this.x, this.y, this.x + this.width, this.y);
+                gradient.addColorStop(0, '#8B4513');
+                gradient.addColorStop(0.3, '#A0522D');
+                gradient.addColorStop(0.7, '#A0522D');
+                gradient.addColorStop(1, '#8B4513');
+                
+                ctx.fillStyle = gradient;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+                
+                ctx.fillStyle = '#654321';
+                ctx.fillRect(this.x, this.y, this.width * 0.15, this.height);
+                ctx.fillRect(this.x + this.width * 0.85, this.y, this.width * 0.15, this.height);
+                
+                ctx.fillStyle = '#D2691E';
+                ctx.fillRect(this.x + this.width * 0.15, this.y, this.width * 0.1, this.height);
+                ctx.fillRect(this.x + this.width * 0.75, this.y, this.width * 0.1, this.height);
+                
+                if (this.direction === 'left' || this.direction === 'right') {
+                    ctx.fillStyle = '#5D3A1A';
+                    ctx.fillRect(this.x, this.y + this.height * 0.3, this.width, this.height * 0.4);
+                }
+                
+                ctx.restore();
+            }
+        }
+        
+        class Duckling {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.bobOffset = 0;
+                this.bobSpeed = 0.05;
+            }
+            
+            update() {
+                this.bobOffset = Math.sin(Date.now() * this.bobSpeed) * 5;
+            }
+            
+            draw() {
+                const x = this.x;
+                const y = this.y + this.bobOffset;
+                
+                ctx.save();
+                
+                ctx.fillStyle = '#FFD54F';
+                ctx.beginPath();
+                ctx.ellipse(x, y + 10, 25, 20, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.beginPath();
+                ctx.ellipse(x, y - 15, 20, 18, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = '#FFA000';
+                ctx.beginPath();
+                ctx.moveTo(x + 15, y - 15);
+                ctx.lineTo(x + 35, y - 12);
+                ctx.lineTo(x + 15, y - 8);
+                ctx.closePath();
+                ctx.fill();
+                
+                ctx.fillStyle = '#333';
+                ctx.beginPath();
+                ctx.arc(x + 5, y - 20, 4, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.arc(x + 6, y - 21, 1.5, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = '#FF7043';
+                ctx.beginPath();
+                ctx.ellipse(x - 12, y + 20, 8, 4, -0.3, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = '#FF7043';
+                ctx.beginPath();
+                ctx.ellipse(x + 12, y + 20, 8, 4, 0.3, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.restore();
+            }
+        }
+        
+        function drawBackground() {
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#87CEEB');
+            gradient.addColorStop(0.4, '#98D8C8');
+            gradient.addColorStop(0.7, '#7FC8A0');
+            gradient.addColorStop(1, '#5BA574');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            for (let i = 0; i < 20; i++) {
+                const x = (i * 100 + Date.now() * 0.01) % (canvas.width + 100) - 50;
+                const y = 50 + Math.sin(i + Date.now() * 0.001) * 20;
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.beginPath();
+                ctx.ellipse(x, y, 30, 15, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            ctx.fillStyle = '#8B7355';
+            ctx.fillRect(0, canvas.height - 80, canvas.width, 80);
+            
+            const grassGradient = ctx.createLinearGradient(0, canvas.height - 80, 0, canvas.height - 60);
+            grassGradient.addColorStop(0, '#7CB342');
+            grassGradient.addColorStop(1, '#558B2F');
+            ctx.fillStyle = grassGradient;
+            ctx.fillRect(0, canvas.height - 80, canvas.width, 20);
+            
+            for (let i = 0; i < canvas.width; i += 15) {
+                const h = 5 + Math.random() * 10;
+                ctx.fillStyle = '#8BC34A';
+                ctx.beginPath();
+                ctx.moveTo(i, canvas.height - 60);
+                ctx.lineTo(i + 5, canvas.height - 60 - h);
+                ctx.lineTo(i + 10, canvas.height - 60);
+                ctx.fill();
+            }
+        }
+        
+        function drawCrocodile() {
+            const x = canvas.width / 2;
+            const y = canvas.height - 120;
+            const size = 80;
+            
+            ctx.save();
+            
+            const bodyGradient = ctx.createLinearGradient(x - size, y, x + size, y);
+            bodyGradient.addColorStop(0, '#2E7D32');
+            bodyGradient.addColorStop(0.3, '#4CAF50');
+            bodyGradient.addColorStop(0.7, '#4CAF50');
+            bodyGradient.addColorStop(1, '#2E7D32');
+            
+            ctx.fillStyle = bodyGradient;
+            ctx.beginPath();
+            ctx.ellipse(x, y - size * 0.3, size, size * 0.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = bodyGradient;
+            ctx.beginPath();
+            ctx.ellipse(x + size * 0.3, y - size * 0.4, size * 0.6, size * 0.35, 0.3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.moveTo(x + size * 0.6, y - size * 0.5);
+            ctx.quadraticCurveTo(x + size * 1.5, y - size * 0.3, x + size * 1.8, y - size * 0.2);
+            ctx.quadraticCurveTo(x + size * 1.5, y, x + size * 0.6, y - size * 0.2);
+            ctx.fill();
+            
+            ctx.fillStyle = '#81C784';
+            for (let i = 0; i < 8; i++) {
+                const tx = x - size * 0.6 + i * size * 0.15;
+                ctx.beginPath();
+                ctx.moveTo(tx, y - size * 0.6);
+                ctx.lineTo(tx + 5, y - size * 0.75);
+                ctx.lineTo(tx + 10, y - size * 0.6);
+                ctx.fill();
+            }
+            
+            ctx.fillStyle = '#1B5E20';
+            ctx.beginPath();
+            ctx.arc(x - size * 0.15, y - size * 0.45, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x + size * 0.15, y - size * 0.45, 8, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(x - size * 0.12, y - size * 0.47, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x + size * 0.18, y - size * 0.47, 3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = '#66BB6A';
+            ctx.beginPath();
+            ctx.ellipse(x - size * 0.5, y - size * 0.15, size * 0.25, size * 0.15, -0.3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = '#43A047';
+            ctx.beginPath();
+            ctx.ellipse(x - size * 0.5, y - size * 0.15, size * 0.15, size * 0.08, -0.3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = '#E57373';
+            ctx.beginPath();
+            ctx.ellipse(x - size * 0.4, y - size * 0.25, 6, 4, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(x - size * 0.2, y - size * 0.28, 6, 4, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = '#4CAF50';
+            ctx.beginPath();
+            ctx.moveTo(x - size * 0.3, y + size * 0.15);
+            ctx.lineTo(x - size * 0.5, y + size * 0.35);
+            ctx.lineTo(x - size * 0.1, y + size * 0.25);
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.moveTo(x + size * 0.1, y + size * 0.15);
+            ctx.lineTo(x - size * 0.1, y + size * 0.35);
+            ctx.lineTo(x + size * 0.3, y + size * 0.25);
+            ctx.fill();
+            
+            ctx.restore();
+        }
+        
+        function drawBathtub() {
+            const x = canvas.width / 2 - 100;
+            const y = canvas.height - 95;
+            const w = 200;
+            const h = 50;
+            
+            ctx.save();
+            
+            const tubGradient = ctx.createLinearGradient(x, y, x, y + h);
+            tubGradient.addColorStop(0, '#FFFFFF');
+            tubGradient.addColorStop(0.3, '#F5F5F5');
+            tubGradient.addColorStop(1, '#E0E0E0');
+            
+            ctx.fillStyle = tubGradient;
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, 10);
+            ctx.fill();
+            
+            ctx.strokeStyle = '#BDBDBD';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, 10);
+            ctx.stroke();
+            
+            ctx.fillStyle = '#90CAF9';
+            ctx.beginPath();
+            ctx.roundRect(x + 5, y + 5, w - 10, h - 20, 5);
+            ctx.fill();
+            
+            ctx.fillStyle = '#BBDEFB';
+            ctx.beginPath();
+            ctx.ellipse(x + w * 0.3, y + h * 0.4, 20, 8, -0.3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.restore();
+        }
+        
+        function initLevel(level) {
+            const config = levelConfigs[Math.min(level - 1, levelConfigs.length - 1)];
+            waterNeeded = config.waterNeeded;
+            waterCollected = 0;
+            waterDrops = [];
+            clouds = [];
+            pipes = [];
+            ducklings = [];
+            
+            document.getElementById('waterNeeded').textContent = waterNeeded;
+            document.getElementById('waterCollected').textContent = waterCollected;
+            document.getElementById('levelNum').textContent = level;
+            
+            for (let i = 0; i < config.cloudCount; i++) {
+                const x = 100 + (canvas.width - 200) * (i / (config.cloudCount - 1 || 1));
+                const y = 80 + Math.random() * 60;
+                const size = 50 + Math.random() * 30;
+                clouds.push(new Cloud(x, y, size));
+            }
+            
+            const pipeConfigs = [
+                { x: canvas.width * 0.3, y: canvas.height * 0.4, w: 150, h: 25, d: 'down' },
+                { x: canvas.width * 0.7, y: canvas.height * 0.3, w: 150, h: 25, d: 'down' },
+                { x: canvas.width * 0.5, y: canvas.height * 0.55, w: 25, h: 100, d: 'left' },
+                { x: canvas.width * 0.4, y: canvas.height * 0.7, w: 200, h: 25, d: 'right' }
+            ];
+            
+            for (let i = 0; i < config.pipeCount; i++) {
+                const cfg = pipeConfigs[i % pipeConfigs.length];
+                pipes.push(new Pipe(cfg.x, cfg.y, cfg.w, cfg.h, cfg.d));
+            }
+            
+            if (config.hasDuck) {
+                ducklings.push(new Duckling(canvas.width * 0.2, canvas.height - 100));
+                ducklings.push(new Duckling(canvas.width * 0.8, canvas.height - 100));
+            }
+        }
+        
+        function checkWaterCollection() {
+            const targetX = canvas.width / 2;
+            const targetY = canvas.height - 95;
+            const collectRadius = 60;
+            
+            for (let i = waterDrops.length - 1; i >= 0; i--) {
+                const drop = waterDrops[i];
+                if (drop.y > targetY - 20 && drop.y < targetY + 30) {
+                    const dx = drop.x - targetX;
+                    if (Math.abs(dx) < collectRadius) {
+                        drop.alive = false;
+                        waterCollected++;
+                        document.getElementById('waterCollected').textContent = waterCollected;
+                        
+                        if (waterCollected >= waterNeeded) {
+                            winLevel();
+                        }
+                    }
+                }
+            }
+        }
+        
+        function winLevel() {
+            gameState = 'win';
+            document.getElementById('winScreen').style.display = 'flex';
+        }
+        
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            gameState = 'playing';
+            currentLevel = 1;
+            initLevel(currentLevel);
+            gameLoop();
+        }
+        
+        function nextLevel() {
+            document.getElementById('winScreen').style.display = 'none';
+            currentLevel++;
+            if (currentLevel > levelConfigs.length) {
+                currentLevel = 1;
+            }
+            gameState = 'playing';
+            initLevel(currentLevel);
+        }
+        
+        function goBack() {
+            window.location.href = 'index.html';
+        }
+        
+        function gameLoop() {
+            if (gameState !== 'playing') return;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            drawBackground();
+            drawBathtub();
+            
+            for (let duck of ducklings) {
+                duck.update();
+                duck.draw();
+            }
+            
+            for (let pipe of pipes) {
+                pipe.draw();
+            }
+            
+            drawCrocodile();
+            
+            for (let cloud of clouds) {
+                cloud.update();
+                cloud.draw();
+            }
+            
+            for (let i = waterDrops.length - 1; i >= 0; i--) {
+                waterDrops[i].update();
+                if (waterDrops[i].alive) {
+                    waterDrops[i].draw();
+                } else {
+                    waterDrops.splice(i, 1);
+                }
+            }
+            
+            checkWaterCollection();
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        canvas.addEventListener('click', (e) => {
+            if (gameState !== 'playing') return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            for (let cloud of clouds) {
+                if (cloud.contains(x, y)) {
+                    cloud.isRaining = !cloud.isRaining;
+                    break;
+                }
+            }
+        });
+        
+        canvas.addEventListener('touchstart', (e) => {
+            if (gameState !== 'playing') return;
+            e.preventDefault();
+            
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+            
+            for (let cloud of clouds) {
+                if (cloud.contains(x, y)) {
+                    cloud.isRaining = !cloud.isRaining;
+                    break;
+                }
+            }
+        });
+    </script>
+</body>
+</html>
