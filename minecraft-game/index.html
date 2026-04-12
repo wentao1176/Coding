@@ -440,6 +440,10 @@
         let selectedSlot = 0;
         let debugMode = false;
         
+        // 复用的几何体和材质
+        let boxGeometry;
+        let blockMaterials = {};
+        
         // 方块类型定义
         const blockTypes = {
             'grass': {
@@ -968,6 +972,8 @@
         
         // 初始化游戏
         function initGame(worldName, seed, gameMode) {
+            console.log(`初始化游戏: ${worldName}, 种子: ${seed}, 模式: ${gameMode}`);
+            
             // 创建场景
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87CEEB); // 天空蓝色
@@ -993,6 +999,9 @@
             // 添加光源
             addLights();
             
+            // 预加载几何体和材质
+            preloadResources();
+            
             // 创建世界
             createWorld(seed);
             
@@ -1004,6 +1013,8 @@
             
             // 开始游戏循环
             gameLoop();
+            
+            console.log('游戏初始化完成');
             
             // 锁定鼠标
             controls.lock();
@@ -1031,6 +1042,53 @@
             // 环境光
             const ambientLight = new THREE.AmbientLight(0xFFFFFF, 0.5);
             scene.add(ambientLight);
+        }
+        
+        // 预加载资源
+        function preloadResources() {
+            console.log('开始预加载资源...');
+            
+            // 创建复用的几何体
+            boxGeometry = new THREE.BoxGeometry(1, 1, 1);
+            
+            // 创建材质
+            const colors = {
+                'grass': 0x71A95A,
+                'dirt': 0x8B4513,
+                'stone': 0xA9A9A9,
+                'wood': 0xD2691E,
+                'leaves': 0x228B22,
+                'sand': 0xF4A460,
+                'water': 0x4682B4,
+                'bedrock': 0x2F4F4F
+            };
+            
+            // 为每种方块创建材质
+            for (const type in blockTypes) {
+                let material;
+                
+                if (blockTypes[type].texture.startsWith('http')) {
+                    // 使用远程纹理
+                    material = new THREE.MeshStandardMaterial({
+                        map: new THREE.TextureLoader().load(blockTypes[type].texture),
+                        roughness: 0.8,
+                        metalness: 0.2
+                    });
+                } else {
+                    // 使用颜色材质
+                    material = new THREE.MeshStandardMaterial({
+                        color: colors[type] || 0xFFFFFF,
+                        roughness: 0.8,
+                        metalness: 0.2,
+                        transparent: type === 'water',
+                        opacity: type === 'water' ? 0.7 : 1.0
+                    });
+                }
+                
+                blockMaterials[type] = material;
+            }
+            
+            console.log('资源预加载完成');
         }
         
         // 创建世界
@@ -1094,8 +1152,10 @@
                         
                         // 创建方块
                         const block = createBlock(blockType, x, y, z);
-                        chunk.add(block);
-                        blockCount++;
+                        if (block) {
+                            chunk.add(block);
+                            blockCount++;
+                        }
                     }
                 }
             }
@@ -1121,52 +1181,31 @@
         
         // 创建方块
         function createBlock(type, x, y, z) {
-            const geometry = new THREE.BoxGeometry(1, 1, 1);
-            
-            // 创建材质
-            let material;
-            if (blockTypes[type].texture.startsWith('http')) {
-                // 使用远程纹理
-                material = new THREE.MeshStandardMaterial({
-                    map: new THREE.TextureLoader().load(blockTypes[type].texture),
-                    roughness: 0.8,
-                    metalness: 0.2
-                });
-            } else {
-                // 使用颜色代替纹理
-                const colors = {
-                    'grass': 0x71A95A,
-                    'dirt': 0x8B4513,
-                    'stone': 0xA9A9A9,
-                    'wood': 0xD2691E,
-                    'leaves': 0x228B22,
-                    'sand': 0xF4A460,
-                    'water': 0x4682B4,
-                    'bedrock': 0x2F4F4F
+            try {
+                // 确保材质存在
+                if (!blockMaterials[type]) {
+                    console.error(`材质不存在: ${type}`);
+                    return null;
+                }
+                
+                // 使用复用的几何体和材质
+                const block = new THREE.Mesh(boxGeometry, blockMaterials[type]);
+                block.position.set(x, y, z);
+                block.castShadow = true;
+                block.receiveShadow = true;
+                
+                // 添加方块数据
+                block.userData = {
+                    type: type,
+                    position: {x, y, z},
+                    hardness: blockTypes[type].hardness
                 };
                 
-                material = new THREE.MeshStandardMaterial({
-                    color: colors[type] || 0xFFFFFF,
-                    roughness: 0.8,
-                    metalness: 0.2,
-                    transparent: type === 'water',
-                    opacity: type === 'water' ? 0.7 : 1.0
-                });
+                return block;
+            } catch (error) {
+                console.error(`创建方块失败: ${error}`);
+                return null;
             }
-            
-            const block = new THREE.Mesh(geometry, material);
-            block.position.set(x, y, z);
-            block.castShadow = true;
-            block.receiveShadow = true;
-            
-            // 添加方块数据
-            block.userData = {
-                type: type,
-                position: {x, y, z},
-                hardness: blockTypes[type].hardness
-            };
-            
-            return block;
         }
         
         // 创建玩家
